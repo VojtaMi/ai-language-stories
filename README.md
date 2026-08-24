@@ -56,8 +56,10 @@ provider key is not configured.
 Language identity and generation guidance live in the registry at
 [`src/languages.ts`](./src/languages.ts). Adding another language is primarily a
 registry-and-assets change. Shared code derives generic prompts, speech
-instructions, starter defaults, and asset paths. Follow the coding-agent
-workflow in [`docs/adding-a-language.md`](./docs/adding-a-language.md).
+instructions, starter defaults, and asset paths. The detailed Codex workflow is
+the [`language-addition` skill](./.codex/skills/language-addition/SKILL.md),
+with a short human-facing overview in
+[`docs/adding-a-language.md`](./docs/adding-a-language.md).
 
 ## Development
 
@@ -80,6 +82,7 @@ Claude models.
 | `npm run dev` | Run API and browser app. |
 | `npm run build` | Type-check and build client and server. |
 | `npm run check` | Run build, lint, and all deterministic tests. |
+| `npm run images:optimize` | Convert language source PNGs to served AVIF assets. |
 | `npm run language:validate -- finnish` | Validate Finnish registry fields, assets, and storage IDs. |
 | `npm run story:generate -- --language dutch` | Generate one complete story through the real provider pipeline. |
 | `npm run story:chain` | Simulate a sequence of stories and handoffs. |
@@ -93,11 +96,12 @@ described in [`docs/ai-workflows.md`](./docs/ai-workflows.md).
 
 ### Adding a language with Codex
 
-Language additions are designed as a coding-agent workflow. Ask Codex to follow
-the repository's language-addition guide: it extends
-[`src/languages.ts`](./src/languages.ts) with the language's identity and
-learning guidance, adds the story poster, bot, and favicon under `public/`,
-and validates the result in the local checkout:
+Language additions are designed as a coding-agent workflow. Use the
+[`language-addition` Codex skill](./.codex/skills/language-addition/SKILL.md): it
+extends [`src/languages.ts`](./src/languages.ts), creates source poster and bot
+assets, converts them to served AVIF files, and validates the result locally.
+The native Codex `imagegen` skill can create and iterate the source visuals;
+API-generated or user-provided source images are also supported.
 
 ```bash
 npm run language:validate -- <language-id>
@@ -106,6 +110,5 @@ npm run check
 
 The registry derives shared prompts, speech instructions, starter defaults, and
 asset paths; the workflow should not create a parallel application or
-language-specific fork. See
-[`docs/adding-a-language.md`](./docs/adding-a-language.md) for the required
-fields, asset conventions, and validation checklist.
+language-specific fork. See [`docs/adding-a-language.md`](./docs/adding-a-language.md)
+for the short overview.

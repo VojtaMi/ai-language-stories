@@ -15,6 +15,7 @@
 		"gemini:images": "tsx --env-file-if-exists=.env.local scripts/compare-gemini-images.ts",
 		"gemini:tts": "tsx --env-file-if-exists=.env.local scripts/test-gemini-tts.ts",
 		"gemini:tts:compare": "tsx --env-file-if-exists=.env.local scripts/compare-gemini-tts.ts",
+		"images:optimize": "tsx scripts/optimize-language-images.ts",
 		"lint": "biome ci .",
 		"lint:fix": "biome check --write .",
 		"lint:staged": "biome check --staged --no-errors-on-unmatched",

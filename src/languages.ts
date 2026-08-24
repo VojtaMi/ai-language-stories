@@ -126,11 +126,11 @@ export function languageStorySystemPrompt(language: Language): string {
 }
 
 export function languageHeroImageUrl(language: Language): string {
-	return `/images/${language.id}-story-hero.png`;
+	return `/images/${language.id}-story-hero.avif`;
 }
 
 export function languageBotImageUrl(language: Language): string {
-	return `/images/${language.id}-story-bot.png`;
+	return `/images/${language.id}-story-bot.avif`;
 }
 
 export function languageFaviconUrl(language: Language): string {

@@ -59,6 +59,7 @@ const mimeTypes: Record<string, string> = {
 	".js": "application/javascript",
 	".mjs": "application/javascript",
 	".css": "text/css",
+	".avif": "image/avif",
 	".webp": "image/webp",
 	".png": "image/png",
 	".jpg": "image/jpeg",
@@ -96,6 +97,7 @@ async function serveStatic(
 }
 
 function imageMimeType(path: string) {
+	if (path.endsWith(".avif")) return "image/avif";
 	if (path.endsWith(".png")) return "image/png";
 	if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "image/jpeg";
 	return "image/webp";
