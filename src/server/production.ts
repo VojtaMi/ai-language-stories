@@ -126,6 +126,15 @@ async function handleRequest(
 			return;
 		}
 
+		if (pathname === "/api/provider-availability" && req.method === "GET") {
+			sendJson(res, 200, {
+				openai: Boolean(OPENAI_API_KEY.trim()),
+				gemini: Boolean((process.env.GEMINI_API_KEY ?? "").trim()),
+				anthropic: Boolean(ANTHROPIC_API_KEY.trim()),
+			});
+			return;
+		}
+
 		if (pathname === "/api/reading-openings/prepare" && req.method === "POST") {
 			const body = req.headers["content-length"]
 				? JSON.parse(await readBody(req))

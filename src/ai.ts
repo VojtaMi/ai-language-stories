@@ -11,6 +11,7 @@ import {
 } from "./models";
 import type { NarrationVoiceId } from "./narrationVoice";
 import type { NextStoryBrief } from "./nextStoryBrief";
+import type { ProviderAvailability } from "./providerAvailability";
 import type { ChatMessage, ReadingStory, ReadingStoryPart } from "./story";
 import type { StoryOpeningAudio } from "./storyAudio";
 import type { StoryBackgroundImage } from "./storyBackground";
@@ -26,6 +27,13 @@ import type { TtsModelId } from "./ttsModel";
 export type { ChatMessage, ReadingStory, ReadingStoryPart };
 
 const STORY_RECAP_MAX_TOKENS = 900;
+
+export async function fetchProviderAvailability(): Promise<ProviderAvailability> {
+	const res = await fetch("/api/provider-availability");
+	if (!res.ok)
+		throw new Error(`Provider availability request failed: ${res.status}`);
+	return (await res.json()) as ProviderAvailability;
+}
 
 export type LanguageTutorChatMessage = {
 	role: "user" | "assistant";

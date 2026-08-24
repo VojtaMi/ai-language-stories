@@ -42,7 +42,10 @@ export async function tts({
 				? "gemini"
 				: "openai"
 			: options.provider;
-	if (requestedProvider === "gemini") {
+	// A saved Gemini selection must remain usable when an app is shared with
+	// only an OpenAI key. The UI normally changes the selection too, but this
+	// server-side fallback also covers stale browser storage and direct calls.
+	if (requestedProvider === "gemini" && process.env.GEMINI_API_KEY?.trim()) {
 		return synthesizeGeminiSpeech({ openai, input, ...options });
 	}
 

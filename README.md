@@ -34,8 +34,11 @@ npm run check
 ```
 
 The development server runs the API on port 3001 and Vite on its normal port.
-Provider keys stay server-side. `ANTHROPIC_API_KEY` is needed for Claude models;
-`GEMINI_API_KEY` is needed for Gemini and single-word pronunciation.
+Provider keys stay server-side. `GEMINI_API_KEY` is optional: it enables Gemini text models, Gemini narration,
+and Gemini single-word pronunciation. Without it, narration and pronunciation
+use OpenAI TTS instead. The settings menu disables models whose provider key is
+not configured. `ANTHROPIC_API_KEY` remains optional and is only needed for
+Claude models.
 
 | Command | Purpose |
 | --- | --- |

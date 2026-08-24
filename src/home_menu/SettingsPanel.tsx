@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import { fetchLearnerPreferences, updateLearnerPreferences } from "../ai";
+import {
+	fetchLearnerPreferences,
+	fetchProviderAvailability,
+	updateLearnerPreferences,
+} from "../ai";
 import type { LearnerPreferences } from "../learnerState";
 import {
 	readSelectedChatModel,
@@ -13,6 +17,11 @@ import {
 	TEXT_MODELS,
 	type TextModelId,
 } from "../models";
+import {
+	isTextModelAvailable,
+	isTtsModelAvailable,
+	type ProviderAvailability,
+} from "../providerAvailability";
 import { TTS_MODELS, type TtsModelId } from "../ttsModel";
 
 interface SettingsPanelProps {
@@ -50,6 +59,21 @@ export function SettingsPanel({
 	const [draft, setDraft] = useState<PreferencesDraft | null>(null);
 	const [saving, setSaving] = useState(false);
 	const [message, setMessage] = useState<string | null>(null);
+	const [availability, setAvailability] = useState<ProviderAvailability | null>(
+		null,
+	);
+
+	useEffect(() => {
+		void fetchProviderAvailability()
+			.then((loaded) => {
+				setAvailability(loaded);
+				if (!loaded.gemini && narrationModel !== "openai") {
+					setNarrationModel("openai");
+					saveSelectedNarrationModel("openai");
+				}
+			})
+			.catch(() => setMessage("Could not determine available AI providers."));
+	}, [narrationModel]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -140,7 +164,14 @@ export function SettingsPanel({
 							}
 						>
 							{TEXT_MODELS.map((item) => (
-								<option key={item.id} value={item.id}>
+								<option
+									key={item.id}
+									value={item.id}
+									disabled={
+										availability !== null &&
+										!isTextModelAvailable(item.id, availability)
+									}
+								>
 									{item.label}
 								</option>
 							))}
@@ -155,7 +186,14 @@ export function SettingsPanel({
 							}
 						>
 							{TTS_MODELS.map((item) => (
-								<option key={item.id} value={item.id}>
+								<option
+									key={item.id}
+									value={item.id}
+									disabled={
+										availability !== null &&
+										!isTtsModelAvailable(item.id, availability)
+									}
+								>
 									{item.label}
 								</option>
 							))}

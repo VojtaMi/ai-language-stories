@@ -39,19 +39,19 @@ export type AiPreset = Readonly<{
 export const STORY_GENERATION_PRESETS = [
 	{
 		id: "terra-medium",
-		label: "GPT 5.6 Terra · Medium — Recommended",
+		label: "GPT 5.6 Terra · Medium",
 		model: "gpt-5.6-terra",
 		reasoningEffort: "medium",
 	},
 	{
 		id: "terra-low",
-		label: "GPT 5.6 Terra · Low — Faster",
+		label: "GPT 5.6 Terra · Low",
 		model: "gpt-5.6-terra",
 		reasoningEffort: "low",
 	},
 	{
 		id: "luna-low",
-		label: "GPT 5.6 Luna · Low — Lowest cost",
+		label: "GPT 5.6 Luna · Low",
 		model: "gpt-5.6-luna",
 		reasoningEffort: "low",
 	},
@@ -65,7 +65,7 @@ export const STORY_GENERATION_PRESETS = [
 export type StoryGenerationPreset = (typeof STORY_GENERATION_PRESETS)[number];
 export type StoryGenerationPresetId = StoryGenerationPreset["id"];
 export const DEFAULT_STORY_GENERATION_PRESET_ID: StoryGenerationPresetId =
-	"terra-medium";
+	"luna-low";
 
 export function findStoryGenerationPreset(
 	id: string | null | undefined,

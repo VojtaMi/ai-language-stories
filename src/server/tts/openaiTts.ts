@@ -9,6 +9,9 @@ export async function synthesizeOpenAiSpeech({
 	speed,
 	voice,
 }: ProviderTtsRequest): Promise<SynthesizedSpeech> {
+	if (!process.env.OPENAI_API_KEY?.trim()) {
+		throw new Error("OpenAI API key is not configured.");
+	}
 	const selectedVoice = voice ?? OPENAI_TTS_VOICE;
 	const response = await traceAiCall(
 		{
