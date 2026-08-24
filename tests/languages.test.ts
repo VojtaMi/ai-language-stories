@@ -80,6 +80,24 @@ assert.match(
 	/een tuin/,
 );
 
+const finnish = getLanguage("finnish");
+const finnishStarterBrief = starterBriefForLanguage(finnish);
+const finnishPrompt = readingManuscriptMessages(
+	finnish,
+	"A person finds a key and returns it.",
+	finnishStarterBrief,
+)[0].content;
+assert.match(finnishPrompt, /beginner Finnish reading story/);
+assert.match(finnishPrompt, /articles or grammatical gender/i);
+assert.match(finnishPrompt, /vowel harmony/i);
+const finnishRecap = buildStoryRecapPrompt("present-tense actions", finnish);
+assert.match(finnishRecap, /Finnish recap lesson/);
+assert.equal(finnish.recapTitle, "Pieni harjoitus");
+assert.match(
+	finnishStarterBrief.language.calibrationSnippets[0] ?? "",
+	/puutarhassa/,
+);
+
 assert.equal(isStoryName("Petron", ["Petro"], "esperanto"), true);
 assert.equal(isStoryName("Petron", ["Petro"], "german"), false);
 assert.deepEqual(storyWords(["Petro vidas Petron."], ["Petro"], "esperanto"), [

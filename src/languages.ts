@@ -87,6 +87,23 @@ export const languages = defineLanguages([
 		],
 		recapTitle: "Kleine oefening",
 	},
+	{
+		id: "finnish",
+		label: "Finnish",
+		shortCode: "FI",
+		teachingTopics:
+			"vocabulary, pronunciation, vowel harmony, consonant gradation, case endings, verb conjugation, and why sentences mean what they mean",
+		absoluteBeginnerGuidance:
+			"Prefer the present tense and short sentences with explicit subjects. Finnish has no articles or grammatical gender: do not invent either. Use basic nominative forms first, then introduce clear locative forms such as -ssa/-ssä and simple possessive or object forms only when language.focus requires them. Keep vowel harmony and consonant gradation natural; avoid dense case chains, conditional or potential mood, participles, and complex subordination.",
+		grammarInvariants:
+			"Do not add articles or grammatical gender. Keep vowel harmony, consonant gradation, verb-person endings, and case endings correct; use the partitive and total object appropriately when objects appear. Prefer present tense and avoid complex subordination unless language.focus explicitly introduces it.",
+		starterFocus:
+			"Simple present-tense Finnish sentences with concrete beginner words; practise article-free noun phrases, basic verb-person endings, and a small set of nominative and -ssa/-ssä forms.",
+		calibrationSnippets: [
+			"Aino on nainen. Aino on puutarhassa. Sisu on koira. Sisu nukkuu Ainon vieressä.",
+		],
+		recapTitle: "Pieni harjoitus",
+	},
 ]);
 
 export type LanguageId = (typeof languages)[number]["id"];

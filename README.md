@@ -1,11 +1,11 @@
 # Language stories
 
-An AI reading-practice app for Esperanto, German, Spanish, and Dutch. Choose the
+An AI reading-practice app for Esperanto, German, Spanish, Dutch, and Finnish. Choose the
 learning language on the main menu, read a finite illustrated and narrated
 story, tap unfamiliar words, and finish with a short recap.
 
 The interface is currently English. Language selection is window-specific via
-`?language=esperanto|german|spanish|dutch`, while the most recently selected
+`?language=esperanto|german|spanish|dutch|finnish`, while the most recently selected
 language is remembered locally for the next unqualified home visit. Explicit
 `prefer` and `avoid` story settings are shared; stories, preparation queues,
 evidence, pronunciation caches, and progression remain language-specific.
@@ -42,7 +42,7 @@ Provider keys stay server-side. `ANTHROPIC_API_KEY` is needed for Claude models;
 | `npm run dev` | Run API and browser app. |
 | `npm run build` | Type-check and build client and server. |
 | `npm run check` | Run build, lint, and all deterministic tests. |
-| `npm run language:validate -- dutch` | Validate language registry fields, assets, and storage IDs. |
+| `npm run language:validate -- finnish` | Validate Finnish registry fields, assets, and storage IDs. |
 | `npm run story:generate -- --language dutch` | Generate one complete story through the real provider pipeline. |
 | `npm run story:chain` | Simulate a sequence of stories and handoffs. |
 | `npm run verify:page -- <url>` | Render a page in a real browser and fail on runtime errors. |
