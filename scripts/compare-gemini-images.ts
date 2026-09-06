@@ -17,8 +17,12 @@ type StoryRecord = {
 	}>;
 };
 
-const DEFAULT_STORY_PATH = "stories/esperanto-story--b34f4dde/story.json";
-const storyPath = process.argv[2] ?? DEFAULT_STORY_PATH;
+const storyPath = process.argv[2];
+if (!storyPath) {
+	throw new Error(
+		"Usage: compare-gemini-images.ts <browser-story-json> [sections] [model]",
+	);
+}
 const sectionNumbers = (process.argv[3] ?? "1,5")
 	.split(",")
 	.map((value) => Number.parseInt(value.trim(), 10))
@@ -43,10 +47,7 @@ if (!genre) {
 }
 
 const storyId = story.id ?? basename(dirname(storyPath));
-const storyFolder = dirname(storyPath);
-const outputDir = storyPath.startsWith(`stories/${storyId}/`)
-	? join(storyFolder, "images")
-	: join("story-images", "gemini-comparisons", storyId);
+const outputDir = join("story-images", "gemini-comparisons", storyId);
 await mkdir(outputDir, { recursive: true });
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY ?? "" });
@@ -94,6 +95,7 @@ for (const sectionNumber of sectionNumbers) {
 		model: image.model,
 		openAiReference: join(
 			"stories",
+			genre.id,
 			storyId,
 			"images",
 			`section_${sectionNumber}.webp`,

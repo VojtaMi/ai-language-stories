@@ -33,14 +33,8 @@ import {
 	prepareMissingReadingOpenings,
 	readStoryImage,
 } from "./openingsStore";
-import {
-	deleteSave,
-	listSaves,
-	readSave,
-	saveIdPattern,
-	writeSave,
-} from "./savesStore";
 import { audioFilePattern, readStoryAudio } from "./storyAudioStore";
+import { storyIdPattern } from "./storyBundleStore";
 import { readWordAudio, wordFilePattern } from "./wordAudioStore";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
@@ -205,7 +199,6 @@ async function handleRequest(
 			parts[1] === "story-images" &&
 			req.method === "GET"
 		) {
-			const storyIdPattern = /^[a-zA-Z0-9_-]+$/;
 			const imageParts = parts.slice(2);
 			let relativePath: string;
 			if (imageParts.length === 1) {
@@ -278,66 +271,11 @@ async function handleRequest(
 			req.method === "GET"
 		) {
 			const storyId = decodeURIComponent(parts[2] ?? "");
-			if (!storyId || !saveIdPattern.test(storyId)) {
+			if (!storyId || !storyIdPattern.test(storyId)) {
 				sendJson(res, 404, { error: "Story not found." });
 				return;
 			}
 			sendJson(res, 200, await listStoryImages(storyId));
-			return;
-		}
-
-		if (pathname === "/api/saves" && req.method === "GET") {
-			const languageId = url.searchParams.get("language");
-			if (languageId !== null && !isLanguageId(languageId)) {
-				sendJson(res, 400, { error: "language is invalid." });
-				return;
-			}
-			const saves = await listSaves();
-			sendJson(
-				res,
-				200,
-				languageId
-					? saves.filter((save) => save.genreId === languageId)
-					: saves,
-			);
-			return;
-		}
-
-		if (parts.length === 3 && parts[0] === "api" && parts[1] === "saves") {
-			const id = parts[2];
-			if (!id || !saveIdPattern.test(id)) {
-				sendJson(res, 404, { error: "Save not found." });
-				return;
-			}
-
-			if (req.method === "GET") {
-				const save = await readSave(id);
-				if (!save) {
-					sendJson(res, 404, { error: "Save not found." });
-					return;
-				}
-				sendJson(res, 200, save);
-				return;
-			}
-
-			if (req.method === "PUT") {
-				const save = JSON.parse(await readBody(req));
-				if (save.id !== id) {
-					sendJson(res, 400, { error: "Save id does not match URL." });
-					return;
-				}
-				await writeSave(id, save);
-				sendJson(res, 200, save);
-				return;
-			}
-
-			if (req.method === "DELETE") {
-				await deleteSave(id);
-				sendJson(res, 204, null);
-				return;
-			}
-
-			sendJson(res, 405, { error: "Method not allowed." });
 			return;
 		}
 

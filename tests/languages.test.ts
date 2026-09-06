@@ -14,10 +14,7 @@ import {
 } from "../src/learnerState.ts";
 import { STARTER_NEXT_STORY_BRIEF } from "../src/nextStoryBrief.ts";
 import { readingManuscriptMessages } from "../src/reading_story/manuscript.ts";
-import {
-	bundledSavePath,
-	createBundleId,
-} from "../src/server/storyBundleStore.ts";
+import { createBundleId } from "../src/server/storyBundleStore.ts";
 import { buildStoryRecapPrompt } from "../src/storyRecap.ts";
 import { isStoryName, storyWords } from "../src/storyVocabulary.ts";
 
@@ -41,11 +38,6 @@ const germanStoryId = createBundleId(
 	"ABCDEF12-0000",
 );
 assert.equal(germanStoryId, "german--der-kleine-schlussel--abcdef12");
-assert.match(
-	bundledSavePath(germanStoryId),
-	/\/stories\/german\/german--der-kleine-schlussel--abcdef12\/story\.json$/,
-);
-
 const german = getLanguage("german");
 const germanStarterBrief = starterBriefForLanguage(german);
 const germanPrompt = readingManuscriptMessages(

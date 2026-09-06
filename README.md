@@ -4,6 +4,12 @@ An AI reading-practice app for Esperanto, German, Spanish, Dutch, and Finnish. C
 learning language on the main menu, read a finite illustrated and narrated
 story, tap unfamiliar words, and finish with a short recap.
 
+The production deployment runs at
+[stories.vmikel.eu](https://stories.vmikel.eu) as a service in the shared
+`vmikel-platform` Rosti stack. Deployment ownership and persistence are
+documented in [`rosti/README.md`](./rosti/README.md); the sibling
+`../vmikel-platform` repository owns the shared Compose project.
+
 The goal is an adaptive reading loop: each story gives the learner useful
 evidence, and the next story uses that evidence to meet the learner where they
 are. The app is designed to adjust language focus and difficulty over time,
@@ -89,8 +95,8 @@ Claude models.
 | `npm run verify:page -- <url>` | Render a page in a real browser and fail on runtime errors. |
 
 Provider-backed scripts can cost money and are not part of `npm run check`.
-Local saves and generated media are plain files grouped under
-`stories/<language>/`; see
+Saved stories and reading progress live in the browser's IndexedDB. Generated
+media, progression evidence, and provider caches remain server-side; see
 [`docs/local-data.md`](./docs/local-data.md). AI call ownership and caching are
 described in [`docs/ai-workflows.md`](./docs/ai-workflows.md).
 

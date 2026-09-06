@@ -10,7 +10,7 @@
  *   - the instruction gives the scene description authority over new objects
  * and adds a chained variant that also attaches the previous section's image.
  *
- * Usage: npx tsx --env-file-if-exists=.env.local scripts/reference-image-experiment.ts <storyId>
+ * Usage: npx tsx --env-file-if-exists=.env.local scripts/reference-image-experiment.ts <browser-story-json>
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -28,15 +28,18 @@ const REFERENCE_INSTRUCTION =
 	"The attached images are earlier scenes of this same story, provided only to fix identity: keep the same faces, hair, clothing, creature design, and art style. " +
 	"The scene description above has final authority over what happens and what is present: render every object it names, exactly as described, even when that object is absent from or looks different in the attached images.";
 
-const storyId = process.argv[2];
-if (!storyId) throw new Error("Usage: reference-image-experiment.ts <storyId>");
-
-const storyDir = join(process.cwd(), "stories", storyId);
-const story = JSON.parse(
-	await readFile(join(storyDir, "story.json"), "utf8"),
-) as { genreId: string; readingStory: ReadingStory };
+const storyPath = process.argv[2];
+if (!storyPath) {
+	throw new Error("Usage: reference-image-experiment.ts <browser-story-json>");
+}
+const story = JSON.parse(await readFile(storyPath, "utf8")) as {
+	id: string;
+	genreId: string;
+	readingStory: ReadingStory;
+};
 
 const readingStory = story.readingStory;
+const storyDir = join(process.cwd(), "stories", story.genreId, story.id);
 const genre = { id: story.genreId, label: "Esperanto" } as unknown as Language;
 const visualContext = readingVisualContext(readingStory);
 

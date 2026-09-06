@@ -4,6 +4,9 @@ import { isLanguageId, type LanguageId, languages } from "../languages";
 
 export const storiesDir = join(process.cwd(), "stories");
 
+/** Safe path segment accepted for current and legacy story identifiers. */
+export const storyIdPattern = /^[a-zA-Z0-9_-]+$/;
+
 const languageIdAlternatives = languages.map(({ id }) => id).join("|");
 export const bundleIdPattern = new RegExp(
 	`^(?:${languageIdAlternatives})--[a-z0-9]+(?:-[a-z0-9]+)*--[a-z0-9]+$`,
@@ -34,10 +37,6 @@ export function storyLanguage(storyId: string): LanguageId {
 		throw new Error(`Story id does not contain a valid language: ${storyId}`);
 	}
 	return language;
-}
-
-export function bundledSavePath(storyId: string) {
-	return join(storyBundlePath(storyId), "story.json");
 }
 
 export function bundledFinishEvidencePath(storyId: string) {

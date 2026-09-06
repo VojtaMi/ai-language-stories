@@ -21,7 +21,6 @@ type GeminiGenerateContentResponse = {
 	}>;
 };
 
-const DEFAULT_STORY_PATH = "stories/esperanto-story--b34f4dde/story.json";
 const DEFAULT_MODEL = "gemini-3.1-flash-tts-preview";
 const DEFAULT_VOICE = "Kore";
 const SAMPLE_RATE = 24_000;
@@ -34,7 +33,12 @@ if (!apiKey) {
 	process.exit(1);
 }
 
-const storyPath = process.argv[2] ?? DEFAULT_STORY_PATH;
+const storyPath = process.argv[2];
+if (!storyPath) {
+	throw new Error(
+		"Usage: test-gemini-tts.ts <browser-story-json> [section] [voice] [model]",
+	);
+}
 const sectionNumber = parseSectionNumber(process.argv[3] ?? "1");
 const voiceName = process.argv[4] ?? DEFAULT_VOICE;
 const model = process.argv[5] ?? DEFAULT_MODEL;

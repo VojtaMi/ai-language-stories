@@ -6,8 +6,7 @@ browser profile that created them.
 
 | Path | Contents and language scope |
 | --- | --- |
-| `stories/<language>/<id>/` | Server-side generated-story bundles and finish evidence used by the preparation/finalization pipeline. |
-| `saves/` | Legacy flat saved-story location, read as a fallback. |
+| `stories/<language>/<id>/` | Server-side generated media and finish evidence used by the preparation/finalization pipeline. These are not browser save records. |
 | `reading-openings/<genreId>.json` | One prepared complete story per language. |
 | `word-audio/<genreId>/` | Language-specific pronunciation cache. |
 | `story-images/`, `story-audio/` | Legacy media location for older ids. |
@@ -20,7 +19,8 @@ The browser stores `last-learning-language` plus saved stories in the
 `/german/story/<story-id>` are local references: another browser profile or a
 cleared database cannot load the story from that URL.
 
-Deleting caches is safe but can cause paid regeneration. Deleting `stories/`,
-`saves/`, or `learner/` loses user-created history or settings. AI trace logs can
-contain complete learner content when full payload logging is enabled and must
-remain untracked.
+Deleting browser IndexedDB deletes that browser profile's saved stories and
+reading progress. Deleting server caches is safe but can cause paid
+regeneration; deleting `stories/` or `learner/` also discards progression
+evidence or settings. AI trace logs can contain complete learner content when
+full payload logging is enabled and must remain untracked.

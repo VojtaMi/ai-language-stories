@@ -24,8 +24,8 @@ import { enqueueLearnerProfileMutation } from "./learnerProfileMutationQueue";
 import { readLearnerContext, writeLearnerContext } from "./learnerProfileStore";
 import { appendLearnerWordLogEntry } from "./learnerWordLogStore";
 import { createBackgroundImage, findLanguage } from "./openingsStore";
-import { saveIdPattern } from "./savesStore";
 import { createOpeningAudio } from "./storyAudioStore";
+import { storyIdPattern } from "./storyBundleStore";
 import {
 	finalizeStoryEvidence,
 	type StoryFinalizationInput,
@@ -56,7 +56,11 @@ export async function handleBackgroundImageRequest(
 		sendJson(res, 404, { error: "Language not found." });
 		return;
 	}
-	if (!storyId || typeof storyId !== "string" || !saveIdPattern.test(storyId)) {
+	if (
+		!storyId ||
+		typeof storyId !== "string" ||
+		!storyIdPattern.test(storyId)
+	) {
 		sendJson(res, 400, { error: "storyId is required." });
 		return;
 	}
@@ -97,7 +101,11 @@ export async function handleOpeningAudioRequest(
 		sendJson(res, 400, { error: "text is required." });
 		return;
 	}
-	if (!storyId || typeof storyId !== "string" || !saveIdPattern.test(storyId)) {
+	if (
+		!storyId ||
+		typeof storyId !== "string" ||
+		!storyIdPattern.test(storyId)
+	) {
 		sendJson(res, 400, { error: "storyId is required." });
 		return;
 	}
@@ -293,7 +301,7 @@ export async function handleFinalizeStoryEvidenceRequest(
 		sendJson(res, 400, { error: "genreId is invalid." });
 		return;
 	}
-	if (typeof body.storyId !== "string" || !saveIdPattern.test(body.storyId)) {
+	if (typeof body.storyId !== "string" || !storyIdPattern.test(body.storyId)) {
 		sendJson(res, 400, { error: "storyId must be a valid story ID." });
 		return;
 	}
@@ -403,7 +411,7 @@ export async function handleLearnerWordLogRequest(
 	}
 	if (
 		storyId !== undefined &&
-		(typeof storyId !== "string" || !saveIdPattern.test(storyId))
+		(typeof storyId !== "string" || !storyIdPattern.test(storyId))
 	) {
 		sendJson(res, 400, { error: "storyId must be a valid story ID." });
 		return;

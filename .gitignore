@@ -9,6 +9,7 @@ dist
 dist-server
 dist-ssr
 *.local
+# Obsolete pre-IndexedDB saves may still exist locally; never commit them.
 saves/
 stories/
 openings/

@@ -1,11 +1,15 @@
+# Generic standalone example; see rosti/README.md.
 services:
   app:
-    image: app:latest
+    build:
+      context: ..
+      dockerfile: rosti/Dockerfile
+    image: language-stories:local
     restart: always
     ports:
       - "80:80"
     volumes:
-      # Reading saves: story.json plus its audio/ and images/ bundle.
+      # Server-side story media and progression evidence (not browser saves).
       - stories:/app/stories
       # The single prepared next story; regenerating one costs a full story.
       - reading-openings:/app/reading-openings
@@ -18,12 +22,9 @@ services:
       - story-audio:/app/story-audio
       - story-images:/app/story-images
       - lesson-audio:/app/lesson-audio
-      # Legacy flat saves, still read by the saves API.
-      - saves:/app/saves
     environment:
-      # Text generation is OpenAI/Anthropic; narration, per-word pronunciation,
-      # and background images are Gemini. All three are required for a working
-      # deployment — see rosti/README.md.
+      # OpenAI is required. Gemini enables optional text/speech models, and
+      # Anthropic is needed only when a Claude model is selected.
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
@@ -38,4 +39,3 @@ volumes:
   story-audio:
   story-images:
   lesson-audio:
-  saves:
