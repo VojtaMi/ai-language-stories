@@ -61,6 +61,17 @@
 	justify-content: center;
 }
 
+.lesson-hero__error {
+	max-width: 34rem;
+	margin: 1rem auto 0;
+	padding: 0.7rem 0.9rem;
+	border: 1px solid rgba(255, 218, 185, 0.8);
+	border-radius: 8px;
+	background: rgba(55, 20, 10, 0.82);
+	color: #fff4ea;
+	font-weight: 650;
+}
+
 .lesson-hero__start {
 	min-height: 3.2rem;
 	padding: 0 1.55rem;

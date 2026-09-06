@@ -28,6 +28,15 @@ The container accepts these environment variables:
 - `GEMINI_API_KEY` optionally enables Gemini text and speech models.
 - `ANTHROPIC_API_KEY` is needed only when a Claude model is selected.
 - `PORT` defaults to 80.
+- `AI_RATE_LIMIT_ENABLED` defaults to `true`.
+- `AI_RATE_LIMIT_PER_MINUTE` defaults to 10 provider-backed requests per IP.
+- `AI_STORY_PREPARATION_LIMIT_PER_DAY` defaults to 10 full reading-story
+  preparations per IP.
+- `AI_RATE_LIMIT_OWNER_TOKEN` optionally defines a private token that bypasses
+  the daily story limit. It does not bypass the per-minute burst limit.
+- `AI_RATE_LIMIT_TRUST_PROXY` defaults to `false`. Set it to `true` only when
+  the app is behind a reverse proxy that replaces `X-Forwarded-For` with the
+  real client address.
 
 Values belong in the hosting environment or an ignored local environment file,
 never in this repository. Without Gemini, narration and pronunciation fall
@@ -46,9 +55,17 @@ equivalent persistent mounts. See
 
 ## Public deployment
 
-The public server currently has no authentication or rate limiting. Anyone
-with its URL can reach provider-backed text, image, and speech endpoints. Add
-cost controls before treating a deployment as an unrestricted public service.
+The server applies a small in-memory abuse guard to provider-backed endpoints.
+It is intentionally not an account quota or a durable billing control: counters
+reset when the process restarts, so provider-side prepaid credits and spending
+limits remain the hard cost ceiling.
+
+To enable owner access in one browser, set the configured token from that
+site's developer console. The token stays in that browser's localStorage:
+
+```js
+localStorage.setItem("language-stories.owner-token", "YOUR_PRIVATE_TOKEN")
+```
 
 Concrete infrastructure identifiers, server paths, Traefik configuration, SSH
 commands, and service-specific deployment procedures belong in the private

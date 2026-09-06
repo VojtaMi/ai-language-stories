@@ -5,6 +5,7 @@ import { readSelectedNarrationModel } from "../modelSelection/modelSelectionStor
 import type { StoryGenerationPreset } from "../models";
 import {
 	listPreparedReadingOpenings,
+	OpeningRequestError,
 	prepareMissingReadingOpenings,
 } from "../openings";
 import { findUnfinishedReadingSave, listSavedStories } from "../saves";
@@ -43,6 +44,17 @@ interface ReadingPreparationRun {
 	/** Resolves with how many stories are queued once preparation has run. */
 	prepare: () => Promise<{ length: number }>;
 	setStatus: (status: ReadingPreparationStatus) => void;
+	setError?: (message: string | null) => void;
+}
+
+export function readingPreparationErrorMessage(error: unknown) {
+	if (
+		error instanceof OpeningRequestError &&
+		(error.code === "story_daily_limit" || error.code === "ai_burst_limit")
+	) {
+		return error.message;
+	}
+	return "Could not prepare the reading story. Please try again.";
 }
 
 /** The `preparing` step shared by the finalize-first and initial passes. */
@@ -50,7 +62,9 @@ async function prepareAndSettle(
 	prepare: () => Promise<{ length: number }>,
 	setStatus: (status: ReadingPreparationStatus) => void,
 	warning: string,
+	setError?: (message: string | null) => void,
 ): Promise<"ready" | "error"> {
+	setError?.(null);
 	setStatus("preparing");
 	try {
 		const prepared = await prepare();
@@ -59,6 +73,7 @@ async function prepareAndSettle(
 		return settled;
 	} catch (err) {
 		console.warn(warning, err);
+		setError?.(readingPreparationErrorMessage(err));
 		setStatus("error");
 		return "error";
 	}
@@ -73,7 +88,9 @@ export async function runReadingPreparation({
 	finalize,
 	prepare,
 	setStatus,
+	setError,
 }: ReadingPreparationRun): Promise<"ready" | "error"> {
+	setError?.(null);
 	setStatus("finalizing");
 	try {
 		await finalize();
@@ -82,6 +99,7 @@ export async function runReadingPreparation({
 		// finalization was meant to update — the exact repetition this lifecycle
 		// exists to prevent. Surface a retry instead.
 		console.warn("Could not finalize reading story evidence.", err);
+		setError?.("Could not finalize the finished story. Please try again.");
 		setStatus("error");
 		return "error";
 	}
@@ -89,6 +107,7 @@ export async function runReadingPreparation({
 		prepare,
 		setStatus,
 		"Could not prepare the next reading story.",
+		setError,
 	);
 }
 
@@ -100,14 +119,17 @@ export async function runReadingPreparation({
 export async function runInitialReadingPreparation({
 	prepare,
 	setStatus,
+	setError,
 }: {
 	prepare: () => Promise<{ length: number }>;
 	setStatus: (status: ReadingPreparationStatus) => void;
+	setError?: (message: string | null) => void;
 }): Promise<"ready" | "error"> {
 	return prepareAndSettle(
 		prepare,
 		setStatus,
 		"Could not prepare the first reading story.",
+		setError,
 	);
 }
 
@@ -179,6 +201,7 @@ export function isReadingPreparationBusy(
 
 export interface ReadingPreparation {
 	status: ReadingPreparationStatus;
+	error: string | null;
 	/** No reading story can start while the next one is being made. */
 	busy: boolean;
 	/**
@@ -222,6 +245,7 @@ export function useReadingPreparation(
 	// A menu cannot know whether its queue is ready until the first async check
 	// completes, so start conservatively busy to avoid an enabled-button flash.
 	const [status, setStatus] = useState<ReadingPreparationStatus>("preparing");
+	const [error, setError] = useState<string | null>(null);
 	const runningRef = useRef(false);
 	const runRef = useRef<StoryFinishEvidence | null>(null);
 	const storyGenerationRef = useRef(storyGeneration);
@@ -249,6 +273,7 @@ export function useReadingPreparation(
 							readSelectedNarrationModel(),
 						),
 					setStatus,
+					setError,
 				});
 				// Keep the evidence on `error` — retry, here or after a reload, needs it.
 				if (settled === "ready") clearPendingReadingEvidence(languageId);
@@ -274,6 +299,7 @@ export function useReadingPreparation(
 						readSelectedNarrationModel(),
 					),
 				setStatus,
+				setError,
 			});
 		} finally {
 			runningRef.current = false;
@@ -289,6 +315,7 @@ export function useReadingPreparation(
 		// it is in flight; otherwise a fresh menu can briefly show an enabled
 		// button, consume nothing, and only then begin the initial preparation.
 		setStatus("preparing");
+		setError(null);
 		let cancelled = false;
 		void (async () => {
 			const pending = readPendingReadingEvidence(languageId);
@@ -373,10 +400,12 @@ export function useReadingPreparation(
 		clearPendingReadingEvidence(languageId);
 		runRef.current = null;
 		setStatus("idle");
+		setError(null);
 	}, [languageId]);
 
 	return {
 		status,
+		error,
 		busy: isReadingPreparationBusy(status),
 		makeNextStory,
 		retry,

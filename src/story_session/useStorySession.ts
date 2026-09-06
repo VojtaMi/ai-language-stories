@@ -1333,6 +1333,7 @@ export function useStorySession({
 		resumeStory,
 		readingPartIndex,
 		readingPreparationStatus: readingPreparation.status,
+		readingPreparationError: readingPreparation.error,
 		retryReadingPreparation: readingPreparation.retry,
 		readingTotalParts: readingStory?.parts.length ?? null,
 		captureBotQuestions,

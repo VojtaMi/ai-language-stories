@@ -21,6 +21,7 @@ interface MainMenuProps {
 	savesError: string | null;
 	storyGenerationPreset: StoryGenerationPresetId;
 	readingStoryStatus: ReadingPreparationStatus;
+	readingStoryError: string | null;
 	hasUnfinishedReadingStory: boolean;
 	onStoryGenerationPresetChange: (id: StoryGenerationPresetId) => void;
 	onLanguageChange: (languageId: LanguageId) => void;
@@ -36,6 +37,7 @@ export default function MainMenu({
 	savesError,
 	storyGenerationPreset,
 	readingStoryStatus,
+	readingStoryError,
 	hasUnfinishedReadingStory,
 	onStoryGenerationPresetChange,
 	onLanguageChange,
@@ -105,6 +107,11 @@ export default function MainMenu({
 										: "Reading Story"}
 						</button>
 					</div>
+					{readingStoryFailed && readingStoryError && (
+						<p className="lesson-hero__error" role="alert">
+							{readingStoryError}
+						</p>
+					)}
 				</div>
 			</section>
 			{settingsOpen && (

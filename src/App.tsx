@@ -141,6 +141,7 @@ function ReadingApp({
 		nonTranslatableWords,
 		readingPartIndex,
 		readingPreparationStatus,
+		readingPreparationError,
 		retryReadingPreparation,
 		readingTotalParts,
 		storyFeedbackSubmittedAt,
@@ -243,6 +244,7 @@ function ReadingApp({
 					}
 					hasUnfinishedReadingStory={Boolean(unfinishedReadingSave)}
 					readingStoryStatus={readingPreparationStatus}
+					readingStoryError={readingPreparationError}
 					onRetryReadingStory={retryReadingPreparation}
 					onResume={resumeStory}
 					onDelete={removeSavedStory}

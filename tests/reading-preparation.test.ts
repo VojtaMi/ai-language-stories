@@ -16,7 +16,9 @@ const {
 	decideReadingPreparationOnLoad,
 	isReadingPreparationBusy,
 	isPendingEvidenceStaleWhileBlocked,
+	readingPreparationErrorMessage,
 } = await import("../src/story_session/useReadingPreparation.ts");
+const { OpeningRequestError } = await import("../src/openings.ts");
 
 type Status = string;
 
@@ -121,18 +123,50 @@ await checkSettledStatus();
 {
 	// A failed preparation must surface retry rather than strand the button.
 	const { statuses, setStatus } = recorder();
+	const errors: Array<string | null> = [];
 
 	await withoutWarnings(() =>
 		runReadingPreparation({
 			finalize: async () => {},
-			prepare: () => Promise.reject(new Error("prepare failed")),
+			prepare: () =>
+				Promise.reject(
+					new OpeningRequestError(
+						"Daily story limit reached. Please try again later.",
+						429,
+						"story_daily_limit",
+						3600,
+					),
+				),
 			setStatus,
+			setError: (message: string | null) => errors.push(message),
 		}),
 	);
 
 	assert.deepEqual(statuses, ["finalizing", "preparing", "error"]);
-	console.log("checked reading preparation: failed generation offers retry");
+	assert.equal(
+		errors.at(-1),
+		"Daily story limit reached. Please try again later.",
+	);
+	console.log(
+		"checked reading preparation: failed generation offers retry and its message",
+	);
 }
+
+assert.equal(
+	readingPreparationErrorMessage(
+		new OpeningRequestError(
+			"Too many AI requests. Please wait a minute and try again.",
+			429,
+			"ai_burst_limit",
+			60,
+		),
+	),
+	"Too many AI requests. Please wait a minute and try again.",
+);
+assert.equal(
+	readingPreparationErrorMessage(new Error("provider internals")),
+	"Could not prepare the reading story. Please try again.",
+);
 
 {
 	// Preparation that reports an empty queue is a failure too — "ready" would

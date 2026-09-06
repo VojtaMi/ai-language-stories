@@ -10,6 +10,28 @@ import type { StoryOpeningAudio } from "./storyAudio";
 import type { StoryBackgroundImage } from "./storyBackground";
 import { DEFAULT_TTS_MODEL, type TtsModelId } from "./ttsModel";
 
+export const OWNER_TOKEN_STORAGE_KEY = "language-stories.owner-token";
+
+export type OpeningRequestErrorCode = "story_daily_limit" | "ai_burst_limit";
+
+export class OpeningRequestError extends Error {
+	constructor(
+		message: string,
+		readonly status: number,
+		readonly code?: OpeningRequestErrorCode,
+		readonly retryAfterSeconds?: number,
+	) {
+		super(message);
+		this.name = "OpeningRequestError";
+	}
+}
+
+function ownerTokenHeader(): Record<string, string> {
+	if (typeof localStorage === "undefined") return {};
+	const token = localStorage.getItem(OWNER_TOKEN_STORAGE_KEY)?.trim();
+	return token ? { "X-Owner-Token": token } : {};
+}
+
 export interface PreparedReadingOpening
 	extends Partial<StoryBackgroundImage>,
 		Partial<StoryOpeningAudio> {
@@ -63,7 +85,7 @@ export async function prepareMissingReadingOpenings(
 ): Promise<PreparedReadingOpeningSummary[]> {
 	const response = await fetch("/api/reading-openings/prepare", {
 		method: "POST",
-		headers: { "Content-Type": "application/json" },
+		headers: { "Content-Type": "application/json", ...ownerTokenHeader() },
 		body: JSON.stringify({
 			genreId,
 			model: storyGeneration.model,
@@ -88,7 +110,33 @@ export async function consumePreparedReadingOpening(
 
 async function parseResponse<T>(response: Response): Promise<T> {
 	if (!response.ok) {
-		throw new Error(await response.text());
+		const text = await response.text();
+		let body: {
+			error?: unknown;
+			code?: unknown;
+			retryAfterSeconds?: unknown;
+		} = {};
+		try {
+			body = JSON.parse(text) as typeof body;
+		} catch {
+			// Non-JSON errors retain their response text below.
+		}
+		const message =
+			typeof body.error === "string" && body.error.trim()
+				? body.error
+				: text || `Request failed: ${response.status}`;
+		const code =
+			body.code === "story_daily_limit" || body.code === "ai_burst_limit"
+				? body.code
+				: undefined;
+		throw new OpeningRequestError(
+			message,
+			response.status,
+			code,
+			typeof body.retryAfterSeconds === "number"
+				? body.retryAfterSeconds
+				: undefined,
+		);
 	}
 	if (response.status === 204) return undefined as T;
 	return response.json() as Promise<T>;
