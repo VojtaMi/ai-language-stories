@@ -2,7 +2,7 @@ import { toFile } from "openai";
 import { traceAiCall } from "../aiTrace";
 import type { GeneratedStoryImage, ProviderImageRequest } from "./types";
 
-export const OPENAI_IMAGE_MODEL = "gpt-image-2";
+export const OPENAI_IMAGE_MODEL = "gpt-image-2.5-flare";
 
 export async function generateOpenAiImage({
 	openai,

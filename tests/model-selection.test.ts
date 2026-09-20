@@ -13,6 +13,7 @@ import {
 	isTextModelAvailable,
 	isTtsModelAvailable,
 } from "../src/providerAvailability.ts";
+import { OPENAI_IMAGE_MODEL } from "../src/server/images/index.ts";
 
 const stored = new Map<string, string>();
 const localStorageStub = {
@@ -60,6 +61,9 @@ assert.equal(
 	false,
 );
 console.log("checked model selection: provider availability");
+
+assert.equal(OPENAI_IMAGE_MODEL, "gpt-image-2.5-flare");
+console.log("checked model selection: OpenAI image model uses the Flare alias");
 
 let requestBody: Record<string, unknown> | undefined;
 const originalFetch = globalThis.fetch;
