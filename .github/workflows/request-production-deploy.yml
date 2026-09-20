@@ -1,0 +1,29 @@
+name: Request production deployment
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: request-production-deployment
+  cancel-in-progress: false
+
+jobs:
+  request:
+    name: Request private platform deployment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch exact commit to vmikel-platform
+        env:
+          GH_TOKEN: ${{ secrets.PLATFORM_DEPLOY_TOKEN }}
+          RELEASE_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          test -n "$GH_TOKEN"
+          gh api --method POST \
+            repos/VojtaMi/vmikel-platform/dispatches \
+            -f event_type=deploy-stories \
+            -f "client_payload[sha]=$RELEASE_SHA"
