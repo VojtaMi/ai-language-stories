@@ -8,8 +8,8 @@ story, tap unfamiliar words, and finish with a short recap.
 **Case study:** [vmikel.eu/stories](https://vmikel.eu/stories)
 
 Languages are data, not code. Each one is a registry entry plus its artwork,
-and adding another follows a repeatable, agent-driven workflow — Finnish was
-added in a single commit without touching application code. See
+and adding another is a single agent skill run that extends the registry,
+creates and optimizes the artwork, and validates the result. See
 [Adding a language](#adding-a-language-with-codex).
 
 The goal is an adaptive reading loop: each story gives the learner useful
