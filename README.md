@@ -4,11 +4,13 @@ An AI reading-practice app for Esperanto, German, Spanish, Dutch, and Finnish. C
 learning language on the main menu, read a finite illustrated and narrated
 story, tap unfamiliar words, and finish with a short recap.
 
-The production deployment runs at
-[stories.vmikel.eu](https://stories.vmikel.eu) as a service in the shared
-`vmikel-platform` Rosti stack. Deployment ownership and persistence are
-documented in [`rosti/README.md`](./rosti/README.md); the sibling
-`../vmikel-platform` repository owns the shared Compose project.
+**Try it live:** [stories.vmikel.eu](https://stories.vmikel.eu) ·
+**Case study:** [vmikel.eu/stories](https://vmikel.eu/stories)
+
+Languages are data, not code. Each one is a registry entry plus its artwork,
+and adding another follows a repeatable, agent-driven workflow — Finnish was
+added in a single commit without touching application code. See
+[Adding a language](#adding-a-language-with-codex).
 
 The goal is an adaptive reading loop: each story gives the learner useful
 evidence, and the next story uses that evidence to meet the learner where they
@@ -66,6 +68,14 @@ instructions, starter defaults, and asset paths. The detailed Codex workflow is
 the [`language-addition` skill](./.codex/skills/language-addition/SKILL.md),
 with a short human-facing overview in
 [`docs/adding-a-language.md`](./docs/adding-a-language.md).
+
+## Deployment
+
+The production deployment runs at
+[stories.vmikel.eu](https://stories.vmikel.eu) as a service in the shared
+`vmikel-platform` Rosti stack. Deployment ownership and persistence are
+documented in [`rosti/README.md`](./rosti/README.md); the sibling
+`../vmikel-platform` repository owns the shared Compose project.
 
 ## Development
 
