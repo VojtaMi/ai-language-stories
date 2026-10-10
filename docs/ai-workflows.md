@@ -28,3 +28,35 @@ Translation/audio files and in-flight media work are cached. Cache hits do not
 call a provider. Enable `AI_CALL_LOG=1` to trace real provider calls to
 `logs/ai-calls.ndjson`; `AI_CALL_LOG_PAYLOAD=full` includes full prompts and
 learner content and should be handled as private data.
+
+## Comparing manuscript models
+
+The text-model evaluator calls the production manuscript prompt and parser with
+fixed reviewed plots. It deliberately excludes plot drafting, splitting, visual
+planning, and handoff generation so every candidate receives the same authoring
+input. Use the chain runner separately to test adaptation across stories.
+The evaluator records an invalid initial response as a failure instead of using
+the production repair model, so a candidate cannot be rescued by another model.
+
+Validate a small run without spending API credits:
+
+```bash
+npm run model:compare -- --smoke --dry-run
+```
+
+Run the default GPT-5.6 Luna, GPT-6 Luna, and GPT-6 Sol comparison:
+
+```bash
+npm run model:compare -- --smoke
+```
+
+A full run covers every language and fixture twice. Narrow it with
+`--candidates`, `--languages`, `--fixtures`, or `--repeats`. Candidate values
+use `model:reasoning` syntax. Pass `--no-judge` for deterministic checks only.
+Pass `--output <existing-directory>` to resume a partially completed run.
+
+Each run writes its manifest, raw generations, cached anonymous judgments,
+scores, Markdown summary, and a model-blinded human review sheet under
+`.artifacts/model-comparison/`. Pricing is a checked-in estimate recorded in the
+manifest; confirm current provider pricing before using cost rankings for a
+production decision.

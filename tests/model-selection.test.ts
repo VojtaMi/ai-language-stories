@@ -53,6 +53,7 @@ console.log("checked model selection: curated presets and stored selection");
 
 const openaiOnly = { openai: true, gemini: false, anthropic: false };
 assert.equal(isTextModelAvailable("gpt-5.6-luna", openaiOnly), true);
+assert.equal(isTextModelAvailable("gpt-6-sol", openaiOnly), true);
 assert.equal(isTextModelAvailable("gemini-2.5-flash", openaiOnly), false);
 assert.equal(isTextModelAvailable("claude-sonnet-4-6", openaiOnly), false);
 assert.equal(isTtsModelAvailable("openai", openaiOnly), true);

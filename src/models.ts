@@ -1,4 +1,6 @@
 export const TEXT_MODELS = [
+	{ id: "gpt-6-sol", label: "GPT 6 Sol" },
+	{ id: "gpt-6-luna", label: "GPT 6 Luna" },
 	{ id: "gpt-5.6-sol", label: "GPT 5.6 Sol" },
 	{ id: "gpt-5.6-terra", label: "GPT 5.6 Terra" },
 	{ id: "gpt-5.6-luna", label: "GPT 5.6 Luna" },
