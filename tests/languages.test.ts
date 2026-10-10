@@ -90,6 +90,18 @@ assert.match(
 	/puutarhassa/,
 );
 
+const latin = getLanguage("latin");
+const latinPrompt = readingManuscriptMessages(
+	latin,
+	"Julia sits in a garden while Marcus sings.",
+	starterBriefForLanguage(latin),
+)[0].content;
+assert.match(latinPrompt, /beginner Latin reading story/);
+assert.match(latinPrompt, /Never simplify by dropping case endings/);
+assert.match(latinPrompt, /ablative for location/);
+assert.match(latinPrompt, /accusative for motion into/);
+assert.match(latinPrompt, /Decline Latin personal names correctly/);
+
 assert.equal(isStoryName("Petron", ["Petro"], "esperanto"), true);
 assert.equal(isStoryName("Petron", ["Petro"], "german"), false);
 assert.deepEqual(storyWords(["Petro vidas Petron."], ["Petro"], "esperanto"), [

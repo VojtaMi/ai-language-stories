@@ -1,6 +1,6 @@
 # Language stories
 
-An AI reading-practice app for Esperanto, German, Spanish, Dutch, and Finnish. Choose the
+An AI reading-practice app for Esperanto, German, Spanish, Dutch, Finnish, and Latin. Choose the
 learning language on the main menu, read a finite illustrated and narrated
 story, tap unfamiliar words, and finish with a short recap.
 
@@ -18,7 +18,7 @@ are. The app is designed to adjust language focus and difficulty over time,
 while keeping the reading experience small, concrete, and story-shaped.
 
 The interface is currently English. Language selection is window-specific via
-`?language=esperanto|german|spanish|dutch|finnish`, while the most recently selected
+`?language=esperanto|german|spanish|dutch|finnish|latin`, while the most recently selected
 language is remembered locally for the next unqualified home visit. Explicit
 `prefer` and `avoid` story settings are shared; stories, preparation queues,
 evidence, pronunciation caches, and progression remain language-specific.
