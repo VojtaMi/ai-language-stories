@@ -103,6 +103,36 @@ export default function ExerciseScreen({
 	const [wordAudioUrls, setWordAudioUrls] = useState<Record<string, string>>(
 		{},
 	);
+	const [selectedPart, setSelectedPart] = useState<{
+		storyId: string | null;
+		target: string | null;
+		index: number;
+	} | null>(null);
+	const selectedIndex =
+		phase === "reading" &&
+		selectedPart?.storyId === storyId &&
+		selectedPart?.target === currentTarget
+			? selectedPart.index
+			: segments.length;
+	const reviewing = selectedIndex < segments.length;
+	const activeText = reviewing ? segments[selectedIndex].text : currentTarget;
+	const activeAudioUrl = reviewing
+		? (segments[selectedIndex].narrationAudio?.openingAudioUrl ?? null)
+		: openingAudioUrl;
+	const selectPart = (index: number) => {
+		setPopover(null);
+		setSelectedPart({ storyId, target: currentTarget, index });
+	};
+	const laterSegments = reviewing
+		? [
+				...segments.slice(selectedIndex + 1),
+				{
+					id: -1,
+					author: "ai" as const,
+					text: currentTarget ?? "",
+				},
+			]
+		: [];
 	const popoverRef = useRef<HTMLDivElement>(null);
 
 	const canShowGallery =
@@ -110,7 +140,7 @@ export default function ExerciseScreen({
 		Boolean(currentImageUrl?.startsWith("/api/story-images/"));
 	const readingProgress =
 		readingPartIndex !== null && readingTotalParts !== null
-			? `Part ${readingPartIndex} of ${readingTotalParts}`
+			? `Part ${reviewing ? selectedIndex + 1 : readingPartIndex} of ${readingTotalParts}`
 			: null;
 	const canContinueReading =
 		phase === "reading" &&
@@ -192,17 +222,22 @@ export default function ExerciseScreen({
 		<div className="story">
 			{backgroundIntro && <p className="story__intro">{backgroundIntro}</p>}
 
-			<StoryLog segments={segments} />
+			<StoryLog
+				segments={
+					phase === "reading" ? segments.slice(0, selectedIndex) : segments
+				}
+				onSelectSegment={phase === "reading" ? selectPart : undefined}
+			/>
 
 			{phase === "reading" && currentTarget && (
-				<div className="story__reading">
+				<div className="story__reading" key={selectedIndex}>
 					<div className="story__reading-header">
 						{readingProgress && (
 							<p className="story__reading-progress">{readingProgress}</p>
 						)}
 					</div>
 					<p className="story__reading-text">
-						{[...currentTarget.matchAll(WORD_PATTERN)].map((match) => {
+						{[...(activeText ?? "").matchAll(WORD_PATTERN)].map((match) => {
 							const token = match[1];
 							const isWord = /[a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]/.test(token);
 							if (!isWord) return token;
@@ -231,24 +266,35 @@ export default function ExerciseScreen({
 						})}
 					</p>
 					<OpeningAudioControl
-						audioUrl={openingAudioUrl}
-						isLoading={openingAudioLoading}
-						hasError={openingAudioError}
-						onRetry={onRetryOpeningAudio}
+						audioUrl={activeAudioUrl}
+						isLoading={!reviewing && openingAudioLoading}
+						hasError={!reviewing && openingAudioError}
+						onRetry={reviewing ? undefined : onRetryOpeningAudio}
 					/>
 					<div className="story__reading-actions">
 						<button
 							type="button"
 							className="story__reading-next"
 							disabled={!canContinueReading}
-							onClick={onContinueReading}
+							onClick={() =>
+								reviewing ? selectPart(selectedIndex + 1) : onContinueReading()
+							}
 						>
-							{canContinueReading && readingPartIndex === readingTotalParts
+							{canContinueReading &&
+							!reviewing &&
+							readingPartIndex === readingTotalParts
 								? "Finish story"
 								: "Next part"}
 						</button>
 					</div>
 				</div>
+			)}
+
+			{reviewing && (
+				<StoryLog
+					segments={laterSegments}
+					onSelectSegment={(index) => selectPart(selectedIndex + 1 + index)}
+				/>
 			)}
 
 			{(phase === "recap-loading" || phase === "recap") && (
