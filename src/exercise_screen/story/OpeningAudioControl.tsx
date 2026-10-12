@@ -23,6 +23,7 @@ interface OpeningAudioControlProps {
 	isLoading?: boolean;
 	hasError?: boolean;
 	onRetry?: () => void;
+	onPositionChange?: (time: number, duration: number) => void;
 }
 
 export function OpeningAudioControl({
@@ -30,12 +31,17 @@ export function OpeningAudioControl({
 	isLoading = false,
 	hasError = false,
 	onRetry,
+	onPositionChange,
 }: OpeningAudioControlProps) {
 	const audioRef = useRef<HTMLAudioElement | null>(null);
 	const [status, setStatus] = useState<OpeningAudioStatus>("idle");
 	const [currentTime, setCurrentTime] = useState(0);
 	const [duration, setDuration] = useState(0);
 	const resumeAfterSeekRef = useRef(false);
+
+	useEffect(() => {
+		onPositionChange?.(currentTime, duration);
+	}, [currentTime, duration, onPositionChange]);
 
 	useEffect(() => {
 		setCurrentTime(0);
@@ -53,8 +59,7 @@ export function OpeningAudioControl({
 		const handleEnd = () => {
 			if (cancelled) return;
 			setStatus("idle");
-			audio.currentTime = 0;
-			setCurrentTime(0);
+			setCurrentTime(audio.duration);
 		};
 		const handleTimeUpdate = () => {
 			if (!cancelled) setCurrentTime(audio.currentTime);

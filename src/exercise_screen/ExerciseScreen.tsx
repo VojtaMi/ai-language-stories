@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	getWordAudioUrl,
 	logLearnerWordClick,
@@ -12,6 +12,7 @@ import type { StoryRecapExerciseResult, StoryRecapLesson } from "../storyRecap";
 import { isStoryName } from "../storyVocabulary";
 import { LanguageChatModal } from "./chatbot/LanguageChatModal";
 import { ExerciseControls } from "./controls/ExerciseControls";
+import { estimateWordTimings, wordAtTime } from "./story/narrationTiming";
 import { OpeningAudioControl } from "./story/OpeningAudioControl";
 import { StoryCompletionView } from "./story/StoryCompletionView";
 import { StoryLoading } from "./story/StoryLoading";
@@ -122,6 +123,42 @@ export default function ExerciseScreen({
 	const activeAudioUrl = reviewing
 		? (segments[selectedIndex].narrationAudio?.openingAudioUrl ?? null)
 		: openingAudioUrl;
+	const [narrationPosition, setNarrationPosition] = useState<{
+		audioUrl: string | null;
+		text: string | null;
+		time: number;
+		duration: number;
+	} | null>(null);
+	const updateNarrationPosition = useCallback(
+		(time: number, duration: number) => {
+			setNarrationPosition({
+				audioUrl: activeAudioUrl,
+				text: activeText,
+				time,
+				duration,
+			});
+		},
+		[activeAudioUrl, activeText],
+	);
+	const wordTimings = useMemo(
+		() => estimateWordTimings(activeText ?? ""),
+		[activeText],
+	);
+	const activeWordOffset =
+		activeAudioUrl &&
+		narrationPosition?.audioUrl === activeAudioUrl &&
+		narrationPosition.text === activeText
+			? narrationPosition.duration > 0 &&
+				narrationPosition.time >= narrationPosition.duration
+				? (activeText?.length ?? null)
+				: narrationPosition.time > 0
+					? wordAtTime(
+							wordTimings,
+							narrationPosition.time,
+							narrationPosition.duration,
+						)
+					: null
+			: null;
 	const selectPart = (index: number) => {
 		setPopover(null);
 		setSelectedPart({ storyId, target: currentTarget, index });
@@ -245,8 +282,18 @@ export default function ExerciseScreen({
 					<p className="story__reading-text">
 						{[...(activeText ?? "").matchAll(WORD_PATTERN)].map((match) => {
 							const token = match[1];
-							const isWord = /[a-zA-ZĉĝĥĵŝŭĈĜĤĴŜŬ]/.test(token);
-							if (!isWord) return token;
+							const isWord = /\p{L}/u.test(token);
+							const narrationClass = !activeAudioUrl
+								? undefined
+								: activeWordOffset !== null && match.index <= activeWordOffset
+									? "story__narration-token story__narration-token--read"
+									: "story__narration-token";
+							if (!isWord)
+								return (
+									<span key={match.index} className={narrationClass}>
+										{token}
+									</span>
+								);
 							const isName = isStoryName(
 								token,
 								nonTranslatableWords,
@@ -259,7 +306,7 @@ export default function ExerciseScreen({
 								<button
 									key={match.index}
 									type="button"
-									className="story__word"
+									className={`story__word ${narrationClass ?? ""}`}
 									onClick={(e) =>
 										handleWordClick(token, translation, isName, e)
 									}
@@ -267,12 +314,15 @@ export default function ExerciseScreen({
 									{token}
 								</button>
 							) : (
-								<span key={match.index}>{token}</span>
+								<span key={match.index} className={narrationClass}>
+									{token}
+								</span>
 							);
 						})}
 					</p>
 					<OpeningAudioControl
 						audioUrl={activeAudioUrl}
+						onPositionChange={updateNarrationPosition}
 						isLoading={!reviewing && openingAudioLoading}
 						hasError={!reviewing && openingAudioError}
 						onRetry={reviewing ? undefined : onRetryOpeningAudio}

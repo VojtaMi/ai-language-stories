@@ -701,6 +701,21 @@ body {
 	color: inherit;
 }
 
+.story__narration-token {
+	color: #6f91c7;
+	transition: color 180ms ease;
+}
+
+.story__narration-token--read {
+	color: var(--text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.story__narration-token {
+		transition: none;
+	}
+}
+
 .story__word-popover {
 	position: fixed;
 	transform: translateX(-50%) translateY(calc(-100% - 8px));
