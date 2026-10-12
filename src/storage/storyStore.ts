@@ -73,6 +73,7 @@ function summary(story: SavedStory): SavedStorySummary {
 		id: story.id,
 		genreId: story.genreId,
 		title: story.title,
+		createdAt: story.createdAt ?? story.updatedAt,
 		updatedAt: story.updatedAt,
 		preview: latestText.slice(0, 180),
 		phase: story.phase,
@@ -86,7 +87,10 @@ export const localStoryStore: StoryStore = {
 		return stories
 			.filter((story) => !languageId || story.genreId === languageId)
 			.map(summary)
-			.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+			.sort(
+				(a, b) =>
+					b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id),
+			);
 	},
 
 	async get(storyId) {
@@ -94,41 +98,59 @@ export const localStoryStore: StoryStore = {
 	},
 
 	async save(story) {
-		await withStore("readwrite", (store) => store.put(story));
-		return story;
+		const saved = await updateStory(story.id, (current) => ({
+			...story,
+			createdAt:
+				current?.createdAt ??
+				current?.updatedAt ??
+				story.createdAt ??
+				story.updatedAt,
+		}));
+		return saved as SavedStory;
 	},
 
 	async patch(storyId, changes) {
-		const database = await openDatabase();
-		const transaction = database.transaction(STORIES_STORE, "readwrite");
-		const store = transaction.objectStore(STORIES_STORE);
-		return new Promise((resolve, reject) => {
-			let updated: SavedStory | null = null;
-			const request = store.get(storyId);
-			request.onsuccess = () => {
-				const current = request.result as SavedStory | undefined;
-				if (!current) return;
-				updated = {
-					...current,
-					...changes,
-					id: storyId,
-					updatedAt: new Date().toISOString(),
-				};
-				store.put(updated);
-			};
-			request.onerror = () =>
-				reject(request.error ?? new Error("IndexedDB request failed."));
-			transaction.onerror = () =>
-				reject(transaction.error ?? new Error("IndexedDB transaction failed."));
-			transaction.onabort = () =>
-				reject(
-					transaction.error ?? new Error("IndexedDB transaction was aborted."),
-				);
-			transaction.oncomplete = () => resolve(updated);
-		});
+		return updateStory(storyId, (current) =>
+			current
+				? {
+						...current,
+						...changes,
+						id: storyId,
+						createdAt: current.createdAt ?? current.updatedAt,
+						updatedAt: new Date().toISOString(),
+					}
+				: null,
+		);
 	},
 
 	async delete(storyId) {
 		await withStore("readwrite", (store) => store.delete(storyId));
 	},
 };
+
+/** Read and write together so media updates cannot change the creation date. */
+async function updateStory(
+	storyId: string,
+	update: (current: SavedStory | undefined) => SavedStory | null,
+): Promise<SavedStory | null> {
+	const database = await openDatabase();
+	const transaction = database.transaction(STORIES_STORE, "readwrite");
+	const store = transaction.objectStore(STORIES_STORE);
+	return new Promise((resolve, reject) => {
+		let updated: SavedStory | null = null;
+		const request = store.get(storyId);
+		request.onsuccess = () => {
+			updated = update(request.result as SavedStory | undefined);
+			if (updated) store.put(updated);
+		};
+		request.onerror = () =>
+			reject(request.error ?? new Error("IndexedDB request failed."));
+		transaction.onerror = () =>
+			reject(transaction.error ?? new Error("IndexedDB transaction failed."));
+		transaction.onabort = () =>
+			reject(
+				transaction.error ?? new Error("IndexedDB transaction was aborted."),
+			);
+		transaction.oncomplete = () => resolve(updated);
+	});
+}

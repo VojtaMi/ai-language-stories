@@ -19,7 +19,7 @@ export function SavedStoryPreview({
 			<div>
 				<h3>{story.title}</h3>
 				<p className="saved-story__meta">
-					{storyGenre?.label ?? story.genreId} · {formatDate(story.updatedAt)}
+					{storyGenre?.label ?? story.genreId} · {formatDate(story.createdAt)}
 				</p>
 				{story.preview && (
 					<p className="saved-story__preview">{story.preview}</p>

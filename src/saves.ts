@@ -13,6 +13,8 @@ export interface SavedStory
 	id: string;
 	genreId: LanguageId;
 	title: string;
+	/** Missing only on saves made before creation dates were recorded. */
+	createdAt?: string;
 	updatedAt: string;
 	messages: ChatMessage[];
 	segments: StorySegment[];
@@ -36,6 +38,7 @@ export interface SavedStorySummary {
 	id: string;
 	genreId: LanguageId;
 	title: string;
+	createdAt: string;
 	updatedAt: string;
 	preview: string;
 	phase: StoryPhase;
