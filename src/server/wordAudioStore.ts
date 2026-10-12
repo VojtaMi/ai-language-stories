@@ -7,6 +7,7 @@ import {
 	languageTtsInstructions,
 } from "../languages";
 import { tts } from "./tts";
+import type { GeminiTtsModel } from "./tts/constants";
 import type { SynthesizedSpeech } from "./tts/types";
 
 const wordAudioDir = join(process.cwd(), "word-audio");
@@ -55,12 +56,14 @@ async function synthesizeWordAudio(
 	openai: OpenAI,
 	genreId: LanguageId,
 	word: string,
+	geminiModel: GeminiTtsModel,
 ): Promise<string> {
 	const genre = getLanguage(genreId);
 	const speech = await tts({
 		openai,
 		text: word,
 		provider: "gemini",
+		geminiModel,
 		instructions: `Pronounce this single ${genre.label} word clearly, slowly, and in isolation — as if teaching a language learner. ${languageTtsInstructions(genre)}`,
 	});
 	await mkdir(join(wordAudioDir, genreId), { recursive: true });
@@ -85,7 +88,12 @@ export async function getOrCreateWordAudio(
 	}
 
 	console.log(`[word-audio] MISS ${word} — calling TTS`);
-	return synthesizeWordAudio(openai, genreId, word);
+	return synthesizeWordAudio(
+		openai,
+		genreId,
+		word,
+		"gemini-3.8-flash-lite-tts",
+	);
 }
 
 export async function regenerateWordAudio(
@@ -101,7 +109,8 @@ export async function regenerateWordAudio(
 		}
 	}
 	console.log(`[word-audio] REGEN ${word} — calling TTS`);
-	return synthesizeWordAudio(openai, genreId, word);
+	// Explicit regeneration tries Flash after an unsatisfactory initial sample.
+	return synthesizeWordAudio(openai, genreId, word, "gemini-3.8-flash-tts");
 }
 
 export async function readWordAudio(
