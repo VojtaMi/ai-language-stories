@@ -186,7 +186,7 @@ function ReadingApp({
 		partIndex: number | null;
 	} | null>(null);
 	const reviewPartIndex =
-		phase === "reading" &&
+		(phase === "reading" || phase === "finished") &&
 		reviewPart?.storyId === activeSaveId &&
 		reviewPart?.target === currentTarget
 			? reviewPart.partIndex

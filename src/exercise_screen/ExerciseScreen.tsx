@@ -110,8 +110,9 @@ export default function ExerciseScreen({
 		target: string | null;
 		index: number;
 	} | null>(null);
+	const canSelectParts = phase === "reading" || phase === "finished";
 	const selectedIndex =
-		phase === "reading" &&
+		canSelectParts &&
 		selectedPart?.storyId === storyId &&
 		selectedPart?.target === currentTarget
 			? selectedPart.index
@@ -129,11 +130,15 @@ export default function ExerciseScreen({
 	const laterSegments = reviewing
 		? [
 				...segments.slice(selectedIndex + 1),
-				{
-					id: -1,
-					author: "ai" as const,
-					text: currentTarget ?? "",
-				},
+				...(phase === "reading" && currentTarget
+					? [
+							{
+								id: -1,
+								author: "ai" as const,
+								text: currentTarget,
+							},
+						]
+					: []),
 			]
 		: [];
 	const popoverRef = useRef<HTMLDivElement>(null);
@@ -142,7 +147,7 @@ export default function ExerciseScreen({
 		Boolean(storyId) &&
 		Boolean(currentImageUrl?.startsWith("/api/story-images/"));
 	const readingProgress =
-		readingPartIndex !== null && readingTotalParts !== null
+		(reviewing || readingPartIndex !== null) && readingTotalParts !== null
 			? `Part ${reviewing ? selectedIndex + 1 : readingPartIndex} of ${readingTotalParts}`
 			: null;
 	const canContinueReading =
@@ -226,13 +231,11 @@ export default function ExerciseScreen({
 			{backgroundIntro && <p className="story__intro">{backgroundIntro}</p>}
 
 			<StoryLog
-				segments={
-					phase === "reading" ? segments.slice(0, selectedIndex) : segments
-				}
-				onSelectSegment={phase === "reading" ? selectPart : undefined}
+				segments={canSelectParts ? segments.slice(0, selectedIndex) : segments}
+				onSelectSegment={canSelectParts ? selectPart : undefined}
 			/>
 
-			{phase === "reading" && currentTarget && (
+			{canSelectParts && activeText && (phase === "reading" || reviewing) && (
 				<div className="story__reading" key={selectedIndex}>
 					<div className="story__reading-header">
 						{readingProgress && (
@@ -274,22 +277,26 @@ export default function ExerciseScreen({
 						hasError={!reviewing && openingAudioError}
 						onRetry={reviewing ? undefined : onRetryOpeningAudio}
 					/>
-					<div className="story__reading-actions">
-						<button
-							type="button"
-							className="story__reading-next"
-							disabled={!canContinueReading}
-							onClick={() =>
-								reviewing ? selectPart(selectedIndex + 1) : onContinueReading()
-							}
-						>
-							{canContinueReading &&
-							!reviewing &&
-							readingPartIndex === readingTotalParts
-								? "Finish story"
-								: "Next part"}
-						</button>
-					</div>
+					{phase === "reading" && (
+						<div className="story__reading-actions">
+							<button
+								type="button"
+								className="story__reading-next"
+								disabled={!canContinueReading}
+								onClick={() =>
+									reviewing
+										? selectPart(selectedIndex + 1)
+										: onContinueReading()
+								}
+							>
+								{canContinueReading &&
+								!reviewing &&
+								readingPartIndex === readingTotalParts
+									? "Finish story"
+									: "Next part"}
+							</button>
+						</div>
+					)}
 				</div>
 			)}
 
