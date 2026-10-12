@@ -26,6 +26,7 @@ import {
 	backgroundLayerStyle,
 	useBackgroundLayers,
 } from "./story_session/background";
+import { useReadingReviewBackground } from "./story_session/background/useReadingReviewBackground";
 import { useStorySession } from "./story_session/useStorySession";
 
 function parseAppPath(pathname: string): {
@@ -179,8 +180,25 @@ function ReadingApp({
 		if (storyId && !activeSaveId) void resumeStory(storyId);
 	}, [activeSaveId, resumeStory, storyId]);
 
+	const [reviewPart, setReviewPart] = useState<{
+		storyId: string | null;
+		target: string | null;
+		partIndex: number | null;
+	} | null>(null);
+	const reviewPartIndex =
+		phase === "reading" &&
+		reviewPart?.storyId === activeSaveId &&
+		reviewPart?.target === currentTarget
+			? reviewPart.partIndex
+			: null;
+	const displayedBackground = useReadingReviewBackground(
+		activeSaveId,
+		reviewPartIndex,
+		backgroundImage,
+		language,
+	);
 	const { visibleBackgroundUrl, previousBackgroundUrl, isBackgroundFading } =
-		useBackgroundLayers(sessionView, backgroundImage);
+		useBackgroundLayers(sessionView, displayedBackground);
 
 	function handleStoryGenerationPresetChange(id: StoryGenerationPresetId) {
 		saveSelectedStoryGenerationPreset(id);
@@ -214,6 +232,7 @@ function ReadingApp({
 						/>
 					)}
 					<div
+						key={visibleBackgroundUrl}
 						className={`story-background story-background--current${
 							isBackgroundFading ? " story-background--fading" : ""
 						}`}
@@ -260,7 +279,7 @@ function ReadingApp({
 					error={error}
 					backgroundIntro={backgroundIntro ?? undefined}
 					storyId={activeSaveId}
-					currentImageUrl={backgroundImage?.backgroundImageUrl ?? null}
+					currentImageUrl={displayedBackground?.backgroundImageUrl ?? null}
 					openingAudioUrl={openingAudio?.openingAudioUrl ?? null}
 					openingAudioLoading={openingAudioLoading}
 					openingAudioError={openingAudioError}
@@ -276,6 +295,13 @@ function ReadingApp({
 					storyRecapError={storyRecapError}
 					onRegenerateWord={regenerateWordTranslation}
 					onContinueReading={continueReadingStory}
+					onSelectReadingPart={(partIndex) =>
+						setReviewPart({
+							storyId: activeSaveId,
+							target: currentTarget,
+							partIndex,
+						})
+					}
 					onCompleteStoryRecap={completeStoryRecap}
 					onRetryStoryRecap={retryStoryRecap}
 					onSkipStoryRecap={skipStoryRecap}

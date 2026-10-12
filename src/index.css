@@ -79,7 +79,7 @@ body {
 }
 
 .story-background--current.story-background--fading {
-	animation: story-background-fade 1.2s ease forwards;
+	animation: story-background-fade 0.8s ease-in-out forwards;
 }
 
 @keyframes story-background-fade {

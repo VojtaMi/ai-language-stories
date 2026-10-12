@@ -54,6 +54,7 @@ interface ExerciseScreenProps {
 	storyRecapError: string | null;
 	onRegenerateWord: (word: string) => Promise<string | null>;
 	onContinueReading: () => void;
+	onSelectReadingPart?: (partIndex: number | null) => void;
 	onCompleteStoryRecap: (results: StoryRecapExerciseResult[]) => void;
 	onRetryStoryRecap: () => void;
 	onSkipStoryRecap: () => void;
@@ -88,6 +89,7 @@ export default function ExerciseScreen({
 	storyRecapError,
 	onRegenerateWord,
 	onContinueReading,
+	onSelectReadingPart,
 	onCompleteStoryRecap,
 	onRetryStoryRecap,
 	onSkipStoryRecap,
@@ -122,6 +124,7 @@ export default function ExerciseScreen({
 	const selectPart = (index: number) => {
 		setPopover(null);
 		setSelectedPart({ storyId, target: currentTarget, index });
+		onSelectReadingPart?.(index < segments.length ? index + 1 : null);
 	};
 	const laterSegments = reviewing
 		? [

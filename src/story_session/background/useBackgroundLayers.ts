@@ -1,7 +1,7 @@
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import type { StoryBackgroundImage } from "../../storyBackground";
 
-const BACKGROUND_FADE_DURATION_MS = 1200;
+const BACKGROUND_FADE_DURATION_MS = 800;
 
 export function backgroundLayerStyle(url: string): CSSProperties {
 	return { "--background-url": `url("${url}")` } as CSSProperties;
@@ -18,53 +18,43 @@ export function useBackgroundLayers(
 		string | null
 	>(null);
 	const [isBackgroundFading, setIsBackgroundFading] = useState(false);
-	const backgroundFadeTimeoutRef = useRef<number | null>(null);
+	const visibleUrlRef = useRef<string | null>(null);
+	const nextUrl =
+		view === "story" ? (backgroundImage?.backgroundImageUrl ?? null) : null;
 
 	useEffect(() => {
-		const nextUrl =
-			view === "story" ? (backgroundImage?.backgroundImageUrl ?? null) : null;
+		let cancelled = false;
+		let timeout: number | undefined;
+		setPreviousBackgroundUrl(null);
+		setIsBackgroundFading(false);
 
-		if (backgroundFadeTimeoutRef.current !== null) {
-			window.clearTimeout(backgroundFadeTimeoutRef.current);
-			backgroundFadeTimeoutRef.current = null;
-		}
-
-		if (!nextUrl) {
-			setVisibleBackgroundUrl(null);
-			setPreviousBackgroundUrl(null);
-			setIsBackgroundFading(false);
-			return;
-		}
-
-		if (!visibleBackgroundUrl) {
+		if (!nextUrl || !visibleUrlRef.current) {
+			visibleUrlRef.current = nextUrl;
 			setVisibleBackgroundUrl(nextUrl);
-			setPreviousBackgroundUrl(null);
-			setIsBackgroundFading(false);
 			return;
 		}
+		if (visibleUrlRef.current === nextUrl) return;
 
-		if (visibleBackgroundUrl === nextUrl) return;
-
-		setPreviousBackgroundUrl(visibleBackgroundUrl);
-		setVisibleBackgroundUrl(nextUrl);
-		setIsBackgroundFading(true);
-		backgroundFadeTimeoutRef.current = window.setTimeout(() => {
-			setPreviousBackgroundUrl(null);
-			setIsBackgroundFading(false);
-			backgroundFadeTimeoutRef.current = null;
-		}, BACKGROUND_FADE_DURATION_MS);
+		const image = new Image();
+		image.onload = () => {
+			if (cancelled) return;
+			setPreviousBackgroundUrl(visibleUrlRef.current);
+			visibleUrlRef.current = nextUrl;
+			setVisibleBackgroundUrl(nextUrl);
+			setIsBackgroundFading(true);
+			timeout = window.setTimeout(() => {
+				setPreviousBackgroundUrl(null);
+				setIsBackgroundFading(false);
+			}, BACKGROUND_FADE_DURATION_MS);
+		};
+		image.src = nextUrl;
 
 		return () => {
-			if (backgroundFadeTimeoutRef.current !== null) {
-				window.clearTimeout(backgroundFadeTimeoutRef.current);
-				backgroundFadeTimeoutRef.current = null;
-			}
+			cancelled = true;
+			image.onload = null;
+			if (timeout !== undefined) window.clearTimeout(timeout);
 		};
-	}, [view, backgroundImage, visibleBackgroundUrl]);
+	}, [nextUrl]);
 
-	return {
-		visibleBackgroundUrl,
-		previousBackgroundUrl,
-		isBackgroundFading,
-	};
+	return { visibleBackgroundUrl, previousBackgroundUrl, isBackgroundFading };
 }
