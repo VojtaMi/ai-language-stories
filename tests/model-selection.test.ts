@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import type OpenAI from "openai";
 import {
+	readSelectedNarrationModel,
 	readSelectedStoryGenerationPreset,
 	saveSelectedStoryGenerationPreset,
 } from "../src/modelSelection/modelSelectionStore.ts";
@@ -14,6 +16,9 @@ import {
 	isTtsModelAvailable,
 } from "../src/providerAvailability.ts";
 import { OPENAI_IMAGE_MODEL } from "../src/server/images/index.ts";
+import { DEFAULT_GEMINI_TTS_MODEL } from "../src/server/tts/constants.ts";
+import { synthesizeGeminiSpeech } from "../src/server/tts/geminiTts.ts";
+import { DEFAULT_TTS_MODEL } from "../src/ttsModel.ts";
 
 const stored = new Map<string, string>();
 const localStorageStub = {
@@ -97,3 +102,76 @@ assert.deepEqual(requestBody, {
 console.log("checked model selection: reading request forwards the preset");
 
 console.log("\nmodel selection checks passed");
+
+assert.equal(DEFAULT_TTS_MODEL, "gemini-3.8-flash-lite-tts");
+assert.equal(DEFAULT_GEMINI_TTS_MODEL, DEFAULT_TTS_MODEL);
+assert.equal(readSelectedNarrationModel(), DEFAULT_TTS_MODEL);
+const originalKey = process.env.GEMINI_API_KEY;
+process.env.GEMINI_API_KEY = "test-key";
+try {
+	for (const model of [
+		"gemini-3.8-flash-tts",
+		"gemini-3.8-flash-lite-tts",
+		"gemini-3.1-flash-tts-preview",
+	] as const) {
+		const modern = model.startsWith("gemini-3.8-");
+		const bytes = modern
+			? Buffer.from("RIFFtestWAVE")
+			: Buffer.from([1, 0, 2, 0]);
+		globalThis.fetch = async (url, init) => {
+			assert.ok(String(url).includes(model));
+			const body = JSON.parse(String(init?.body));
+			const part = body.contents[0].parts[0];
+			if (modern) {
+				assert.equal(part.text, "Ĉu ŝi ĝojas?");
+				assert.ok(part.speech_metadata.style.includes("Slowly."));
+				assert.equal(
+					body.generationConfig.speechConfig.voiceConfig.voice,
+					"Kore",
+				);
+			} else {
+				assert.ok(part.text.includes("Transcript:"));
+				assert.equal(
+					body.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig
+						.voiceName,
+					"Kore",
+				);
+			}
+			return Response.json({
+				candidates: [
+					{
+						content: {
+							parts: [
+								{
+									inlineData: {
+										data: bytes.toString("base64"),
+										mimeType: modern ? "audio/wav" : "audio/l16; rate=24000",
+									},
+								},
+							],
+						},
+					},
+				],
+			});
+		};
+		const result = await synthesizeGeminiSpeech({
+			openai: {} as OpenAI,
+			input: "Ĉu ŝi ĝojas?",
+			instructions: "Slowly.",
+			voice: "Kore",
+			geminiModel: model,
+		});
+		if (modern) assert.deepEqual(result.audio, bytes);
+		else {
+			assert.equal(result.audio.toString("ascii", 0, 4), "RIFF");
+			assert.deepEqual(result.audio.subarray(44), bytes);
+		}
+	}
+} finally {
+	globalThis.fetch = originalFetch;
+	if (originalKey === undefined) delete process.env.GEMINI_API_KEY;
+	else process.env.GEMINI_API_KEY = originalKey;
+}
+console.log(
+	"checked narration: Flash-Lite default, speech metadata, and WAV handling",
+);

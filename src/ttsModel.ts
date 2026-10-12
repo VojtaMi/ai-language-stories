@@ -4,6 +4,8 @@ export const TTS_MODELS = [
 	{ id: "openai", label: "OpenAI (gpt-4o-mini-tts)" },
 	{ id: "gemini-2.5-flash-preview-tts", label: "Gemini 2.5 Flash (preview)" },
 	{ id: "gemini-3.1-flash-tts-preview", label: "Gemini 3.1 Flash (preview)" },
+	{ id: "gemini-3.8-flash-tts", label: "Gemini 3.8 Flash" },
+	{ id: "gemini-3.8-flash-lite-tts", label: "Gemini 3.8 Flash-Lite" },
 ] as const;
 
 export type TtsModelId = (typeof TTS_MODELS)[number]["id"];
@@ -13,7 +15,7 @@ export type TtsModelId = (typeof TTS_MODELS)[number]["id"];
  * a headless verification run — falls back to this, and a fallback that
  * disagrees with the recordings on disk re-narrates them at cost.
  */
-export const DEFAULT_TTS_MODEL: TtsModelId = "gemini-3.1-flash-tts-preview";
+export const DEFAULT_TTS_MODEL: TtsModelId = "gemini-3.8-flash-lite-tts";
 
 export function isTtsModelId(value: unknown): value is TtsModelId {
 	return (
@@ -46,6 +48,18 @@ const TTS_MODEL_INFO: Record<TtsModelId, TtsModelInfo> = {
 		extension: "wav",
 		mimeType: "audio/wav",
 		model: "gemini-3.1-flash-tts-preview",
+	},
+	"gemini-3.8-flash-tts": {
+		provider: "gemini",
+		extension: "wav",
+		mimeType: "audio/wav",
+		model: "gemini-3.8-flash-tts",
+	},
+	"gemini-3.8-flash-lite-tts": {
+		provider: "gemini",
+		extension: "wav",
+		mimeType: "audio/wav",
+		model: "gemini-3.8-flash-lite-tts",
 	},
 };
 

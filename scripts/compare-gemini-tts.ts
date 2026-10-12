@@ -64,7 +64,7 @@ for (const model of MODELS) {
 	const started = Date.now();
 	const pcm = await generateGeminiTts({ apiKey, model, text, voiceName });
 	const elapsedMs = Date.now() - started;
-	const wav = pcmToWav(pcm);
+	const wav = model.startsWith("gemini-3.8-") ? pcm : pcmToWav(pcm);
 
 	const outputPath = join(
 		outputDir,
@@ -89,6 +89,7 @@ async function generateGeminiTts({
 	text: string;
 	voiceName: string;
 }): Promise<Buffer> {
+	const usesSpeechMetadata = model.startsWith("gemini-3.8-");
 	const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 	const response = await fetch(endpoint, {
 		method: "POST",
@@ -101,7 +102,17 @@ async function generateGeminiTts({
 				{
 					parts: [
 						{
-							text: `Read this Esperanto beginner story section aloud slowly and clearly, with natural pauses. Recite only the passage:\n\n${text}`,
+							text: usesSpeechMetadata
+								? text
+								: `Read this Esperanto beginner story section aloud slowly and clearly, with natural pauses. Recite only the passage:\n\n${text}`,
+							...(usesSpeechMetadata
+								? {
+										speech_metadata: {
+											style:
+												"Read this Esperanto beginner story section aloud slowly and clearly, with natural pauses.",
+										},
+									}
+								: {}),
 						},
 					],
 				},
@@ -109,9 +120,9 @@ async function generateGeminiTts({
 			generationConfig: {
 				responseModalities: ["AUDIO"],
 				speechConfig: {
-					voiceConfig: {
-						prebuiltVoiceConfig: { voiceName },
-					},
+					voiceConfig: usesSpeechMetadata
+						? { voice: voiceName }
+						: { prebuiltVoiceConfig: { voiceName } },
 				},
 			},
 		}),

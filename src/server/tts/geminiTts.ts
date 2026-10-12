@@ -48,14 +48,33 @@ export async function synthesizeGeminiSpeech({
 	]
 		.filter(Boolean)
 		.join("\n");
+	const usesSpeechMetadata = selectedModel.startsWith("gemini-3.8-");
 	const body = {
-		contents: [{ parts: [{ text: prompt }] }],
+		contents: [
+			{
+				parts: [
+					usesSpeechMetadata
+						? {
+								text: input,
+								speech_metadata: {
+									style: [
+										instructions,
+										"Keep pronunciation careful, natural, and learner-friendly.",
+									]
+										.filter(Boolean)
+										.join("\n"),
+								},
+							}
+						: { text: prompt },
+				],
+			},
+		],
 		generationConfig: {
 			responseModalities: ["AUDIO"],
 			speechConfig: {
-				voiceConfig: {
-					prebuiltVoiceConfig: { voiceName: selectedVoice },
-				},
+				voiceConfig: usesSpeechMetadata
+					? { voice: selectedVoice }
+					: { prebuiltVoiceConfig: { voiceName: selectedVoice } },
 			},
 		},
 	};
@@ -124,8 +143,9 @@ export async function synthesizeGeminiSpeech({
 		throw new Error("Gemini TTS did not produce audio.");
 	}
 
+	const data = Buffer.from(inlineData.data, "base64");
 	return {
-		audio: pcmToWav(Buffer.from(inlineData.data, "base64")),
+		audio: usesSpeechMetadata ? data : pcmToWav(data),
 		extension: "wav",
 		mimeType: "audio/wav",
 		model: selectedModel,
