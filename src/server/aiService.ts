@@ -159,7 +159,9 @@ async function completeOpenAi(
 	}
 	const reasoningEffort =
 		options.reasoningEffort ??
-		(model.startsWith("gpt-5.6") ? "none" : undefined);
+		(model.startsWith("gpt-5.6") || model === "gpt-6-luna"
+			? "none"
+			: undefined);
 	const response = await traceAiCall(
 		{
 			kind: "text.complete",
@@ -218,6 +220,9 @@ async function completeAnthropic(
 			anthropic.messages.create({
 				model,
 				max_tokens: maxTokens,
+				...(model === "claude-haiku-5-5"
+					? { thinking: { type: "disabled" as const } }
+					: {}),
 				...(systemContent ? { system: systemContent } : {}),
 				messages: conversationMessages,
 			}),
@@ -227,14 +232,12 @@ async function completeAnthropic(
 				.join(""),
 	);
 
-	const block = response.content[0];
-	if (block?.type !== "text")
-		throw new Error("The AI returned an empty response.");
-	return finishCompletion(
-		block.text,
-		response.stop_reason === "max_tokens",
-		output,
-	);
+	const text = response.content
+		.filter((block) => block.type === "text")
+		.map((block) => block.text)
+		.join("");
+	if (!text.trim()) throw new Error("The AI returned an empty response.");
+	return finishCompletion(text, response.stop_reason === "max_tokens", output);
 }
 
 async function completeGemini(
@@ -276,7 +279,12 @@ async function requestGemini(
 	const body = {
 		contents: conversationMessages,
 		generationConfig: {
-			maxOutputTokens: maxTokens,
+			// Gemini counts thinking tokens against the output ceiling too.
+			maxOutputTokens:
+				model === "gemini-3.8-flash" ? Math.max(maxTokens, 2048) : maxTokens,
+			...(model === "gemini-3.8-flash"
+				? { thinkingConfig: { thinkingLevel: "low" } }
+				: {}),
 		},
 		...(systemContent
 			? {

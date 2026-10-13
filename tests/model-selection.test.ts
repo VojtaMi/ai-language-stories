@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
 import type OpenAI from "openai";
 import {
+	readSelectedChatModel,
 	readSelectedNarrationModel,
 	readSelectedStoryGenerationPreset,
+	saveSelectedChatModel,
 	saveSelectedStoryGenerationPreset,
 } from "../src/modelSelection/modelSelectionStore.ts";
 import {
+	CHAT_MODELS,
+	DEFAULT_CHAT_MODEL,
 	DEFAULT_STORY_GENERATION_PRESET_ID,
 	getStoryGenerationPreset,
 	STORY_GENERATION_PRESETS,
@@ -15,6 +19,7 @@ import {
 	isTextModelAvailable,
 	isTtsModelAvailable,
 } from "../src/providerAvailability.ts";
+import { completeAi } from "../src/server/aiService.ts";
 import { OPENAI_IMAGE_MODEL } from "../src/server/images/index.ts";
 import { DEFAULT_GEMINI_TTS_MODEL } from "../src/server/tts/constants.ts";
 import { synthesizeGeminiSpeech } from "../src/server/tts/geminiTts.ts";
@@ -175,3 +180,88 @@ try {
 console.log(
 	"checked narration: Flash-Lite default, speech metadata, and WAV handling",
 );
+
+// The tutor only restores supported chat choices, independently of story models.
+assert.equal(readSelectedChatModel(), DEFAULT_CHAT_MODEL);
+assert.equal(DEFAULT_CHAT_MODEL, "gpt-6-luna");
+for (const model of CHAT_MODELS) {
+	saveSelectedChatModel(model.id);
+	assert.equal(readSelectedChatModel(), model.id);
+}
+stored.set("chat-model", "gpt-5.6-luna");
+assert.equal(readSelectedChatModel(), "gpt-6-luna");
+stored.set("chat-model", "unknown-model");
+assert.equal(readSelectedChatModel(), "gpt-6-luna");
+console.log("checked tutor selection: persistence and retired model reset");
+
+const previousOpenAiKey = process.env.OPENAI_API_KEY;
+const previousGeminiKey = process.env.GEMINI_API_KEY;
+process.env.OPENAI_API_KEY = "test-key";
+process.env.GEMINI_API_KEY = "test-key";
+try {
+	const openai = {
+		chat: {
+			completions: {
+				create: async (body: Record<string, unknown>) => {
+					assert.equal(body.model, "gpt-6-luna");
+					assert.equal(body.reasoning_effort, "none");
+					return {
+						choices: [
+							{ message: { content: "Hello." }, finish_reason: "stop" },
+						],
+					};
+				},
+			},
+		},
+	} as unknown as OpenAI;
+	assert.equal(
+		await completeAi(
+			openai,
+			[{ role: "user", content: "Hello" }],
+			520,
+			"gpt-6-luna",
+		),
+		"Hello.",
+	);
+	globalThis.fetch = async (url, init) => {
+		const body = JSON.parse(String(init?.body));
+		if (String(url).includes("anthropic.com")) {
+			assert.equal(body.model, "claude-haiku-5-5");
+			assert.deepEqual(body.thinking, { type: "disabled" });
+			return Response.json({
+				content: [
+					{ type: "thinking", thinking: "", signature: "test" },
+					{ type: "text", text: "Hello." },
+				],
+				stop_reason: "end_turn",
+			});
+		}
+		assert.ok(String(url).includes("gemini-3.8-flash:generateContent"));
+		assert.equal(body.generationConfig.thinkingConfig.thinkingLevel, "low");
+		assert.ok(body.generationConfig.maxOutputTokens > 520);
+		return Response.json({
+			candidates: [
+				{ content: { parts: [{ text: "Hello." }] }, finishReason: "STOP" },
+			],
+		});
+	};
+	for (const model of ["claude-haiku-5-5", "gemini-3.8-flash"] as const) {
+		assert.equal(
+			await completeAi(
+				openai,
+				[{ role: "user", content: "Hello" }],
+				520,
+				model,
+				"test-key",
+			),
+			"Hello.",
+		);
+	}
+} finally {
+	globalThis.fetch = originalFetch;
+	if (previousOpenAiKey === undefined) delete process.env.OPENAI_API_KEY;
+	else process.env.OPENAI_API_KEY = previousOpenAiKey;
+	if (previousGeminiKey === undefined) delete process.env.GEMINI_API_KEY;
+	else process.env.GEMINI_API_KEY = previousGeminiKey;
+}
+console.log("checked tutor providers: request settings and answer extraction");

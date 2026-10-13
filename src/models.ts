@@ -1,6 +1,15 @@
-export const TEXT_MODELS = [
-	{ id: "gpt-6-sol", label: "GPT 6 Sol" },
+/** Curated models for the interactive language tutor. */
+export const CHAT_MODELS = [
 	{ id: "gpt-6-luna", label: "GPT 6 Luna" },
+	{ id: "claude-haiku-5-5", label: "Claude Haiku 5.5" },
+	{ id: "gemini-3.8-flash", label: "Gemini 3.8 Flash" },
+] as const;
+
+export type ChatModelId = (typeof CHAT_MODELS)[number]["id"];
+
+export const TEXT_MODELS = [
+	...CHAT_MODELS,
+	{ id: "gpt-6-sol", label: "GPT 6 Sol" },
 	{ id: "gpt-5.6-sol", label: "GPT 5.6 Sol" },
 	{ id: "gpt-5.6-terra", label: "GPT 5.6 Terra" },
 	{ id: "gpt-5.6-luna", label: "GPT 5.6 Luna" },
@@ -33,7 +42,7 @@ export type AiPreset = Readonly<{
 }>;
 
 /**
- * Curated story-generation choices. The tutor and CLI still use TEXT_MODELS;
+ * Curated story-generation choices. The CLI uses TEXT_MODELS;
  * this shorter list only exposes combinations we have evaluated for complete
  * reading stories. Typing stories use the preset's model but do not use its
  * reasoning effort because their continuation endpoint streams plain text.
@@ -87,7 +96,7 @@ export function getStoryGenerationPreset(
  * independently of the story-generation model. Users can switch it in
  * the chat UI; the choice persists separately from the story model.
  */
-export const DEFAULT_CHAT_MODEL: TextModelId = "gpt-5.6-luna";
+export const DEFAULT_CHAT_MODEL: ChatModelId = "gpt-6-luna";
 
 /**
  * Token ceiling for a single story segment. This is a safety net, not a length

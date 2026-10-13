@@ -12,7 +12,7 @@ import {
 	readSelectedChatModel,
 	saveSelectedChatModel,
 } from "../../modelSelection/modelSelectionStore";
-import { TEXT_MODELS, type TextModelId } from "../../models";
+import { CHAT_MODELS, type ChatModelId } from "../../models";
 import type { StorySegment } from "../types";
 
 interface LanguageChatModalProps {
@@ -43,7 +43,7 @@ export function LanguageChatModal({
 	const [messages, setMessages] = useState<ChatEntry[]>([]);
 	const [input, setInput] = useState("");
 	const [inputMode, setInputMode] = useState<InputMode>("english");
-	const [model, setModel] = useState<TextModelId>(readSelectedChatModel);
+	const [model, setModel] = useState<ChatModelId>(readSelectedChatModel);
 	const [isSending, setIsSending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -237,12 +237,12 @@ export function LanguageChatModal({
 							<select
 								value={model}
 								onChange={(event) => {
-									const next = event.target.value as TextModelId;
+									const next = event.target.value as ChatModelId;
 									setModel(next);
 									saveSelectedChatModel(next);
 								}}
 							>
-								{TEXT_MODELS.map((textModel) => (
+								{CHAT_MODELS.map((textModel) => (
 									<option key={textModel.id} value={textModel.id}>
 										{textModel.label}
 									</option>

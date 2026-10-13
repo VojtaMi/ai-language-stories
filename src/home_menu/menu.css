@@ -215,7 +215,7 @@
 
 .settings-panel__models {
 	display: grid;
-	grid-template-columns: minmax(0, 1.65fr) repeat(2, minmax(0, 1fr));
+	grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
 	align-items: stretch;
 	margin: 1.25rem 0;
 }

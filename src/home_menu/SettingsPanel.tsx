@@ -6,19 +6,14 @@ import {
 } from "../ai";
 import type { LearnerPreferences } from "../learnerState";
 import {
-	readSelectedChatModel,
 	readSelectedNarrationModel,
-	saveSelectedChatModel,
 	saveSelectedNarrationModel,
 } from "../modelSelection/modelSelectionStore";
 import {
 	STORY_GENERATION_PRESETS,
 	type StoryGenerationPresetId,
-	TEXT_MODELS,
-	type TextModelId,
 } from "../models";
 import {
-	isTextModelAvailable,
 	isTtsModelAvailable,
 	type ProviderAvailability,
 } from "../providerAvailability";
@@ -50,9 +45,6 @@ export function SettingsPanel({
 	onStoryGenerationPresetChange,
 	onClose,
 }: SettingsPanelProps) {
-	const [chatModel, setChatModel] = useState<TextModelId>(
-		readSelectedChatModel,
-	);
 	const [narrationModel, setNarrationModel] = useState<TtsModelId>(
 		readSelectedNarrationModel,
 	);
@@ -109,7 +101,6 @@ export function SettingsPanel({
 				avoid: list(draft.avoid),
 			};
 			await updateLearnerPreferences(preferences);
-			saveSelectedChatModel(chatModel);
 			saveSelectedNarrationModel(narrationModel);
 			setMessage("Settings saved.");
 		} catch (error) {
@@ -150,28 +141,6 @@ export function SettingsPanel({
 						>
 							{STORY_GENERATION_PRESETS.map((item) => (
 								<option key={item.id} value={item.id}>
-									{item.label}
-								</option>
-							))}
-						</select>
-					</label>
-					<label>
-						Tutor model
-						<select
-							value={chatModel}
-							onChange={(event) =>
-								setChatModel(event.target.value as TextModelId)
-							}
-						>
-							{TEXT_MODELS.map((item) => (
-								<option
-									key={item.id}
-									value={item.id}
-									disabled={
-										availability !== null &&
-										!isTextModelAvailable(item.id, availability)
-									}
-								>
 									{item.label}
 								</option>
 							))}

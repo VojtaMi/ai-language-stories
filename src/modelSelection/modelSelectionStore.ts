@@ -1,10 +1,10 @@
 import {
+	CHAT_MODELS,
+	type ChatModelId,
 	DEFAULT_CHAT_MODEL,
 	DEFAULT_STORY_GENERATION_PRESET_ID,
 	findStoryGenerationPreset,
 	type StoryGenerationPresetId,
-	TEXT_MODELS,
-	type TextModelId,
 } from "../models";
 import { DEFAULT_TTS_MODEL, isTtsModelId, type TtsModelId } from "../ttsModel";
 
@@ -32,14 +32,14 @@ export function saveSelectedStoryGenerationPreset(id: StoryGenerationPresetId) {
 	localStorage.setItem(STORY_GENERATION_PRESET_STORAGE_KEY, id);
 }
 
-export function readSelectedChatModel(): TextModelId {
+export function readSelectedChatModel(): ChatModelId {
 	const stored = localStorage.getItem(CHAT_MODEL_STORAGE_KEY);
 	return (
-		TEXT_MODELS.find((model) => model.id === stored)?.id ?? DEFAULT_CHAT_MODEL
+		CHAT_MODELS.find((model) => model.id === stored)?.id ?? DEFAULT_CHAT_MODEL
 	);
 }
 
-export function saveSelectedChatModel(id: TextModelId) {
+export function saveSelectedChatModel(id: ChatModelId) {
 	localStorage.setItem(CHAT_MODEL_STORAGE_KEY, id);
 }
 

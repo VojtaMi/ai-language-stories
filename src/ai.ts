@@ -3,7 +3,7 @@ import type { LearnerContext } from "./learnerContext";
 import type { LearnerPreferences } from "./learnerState";
 import { DEFAULT_LEARNER_CONTEXT, parseLearnerContext } from "./learnerState";
 import {
-	DEFAULT_TEXT_MODEL,
+	DEFAULT_CHAT_MODEL,
 	EXERCISE_MODEL,
 	STORY_SEGMENT_MAX_TOKENS,
 	type TextModelId,
@@ -330,7 +330,7 @@ export async function askLanguageTutor({
 	backgroundIntro,
 	conversation,
 	question,
-	model = DEFAULT_TEXT_MODEL,
+	model = DEFAULT_CHAT_MODEL,
 }: LanguageTutorRequest): Promise<string> {
 	const storyContext = [
 		backgroundIntro ? `Player context: ${backgroundIntro}` : "",
