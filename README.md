@@ -1,7 +1,7 @@
 # Language stories
 
-An AI reading-practice app for Esperanto, German, Spanish, Dutch, Finnish, and Latin. Choose the
-learning language on the main menu, read a finite illustrated and narrated
+An AI reading-practice app for Esperanto, German, Spanish, Dutch, Finnish, and
+Latin (Classical and Ecclesiastical pronunciation). Choose the learning language on the main menu, read a finite illustrated and narrated
 story, tap unfamiliar words, and finish with a short recap.
 
 **Try it live:** [stories.vmikel.eu](https://stories.vmikel.eu) ·
@@ -18,10 +18,21 @@ are. The app is designed to adjust language focus and difficulty over time,
 while keeping the reading experience small, concrete, and story-shaped.
 
 The interface is currently English. Language selection is window-specific via
-`?language=esperanto|german|spanish|dutch|finnish|latin`, while the most recently selected
+`/esperanto`, `/german`, `/spanish`, `/dutch`, `/finnish`, `/latin`, or
+`/latin-ecclesiastical`, while the most recently selected
 language is remembered locally for the next unqualified home visit. Explicit
 `prefer` and `avoid` story settings are shared; stories, preparation queues,
 evidence, pronunciation caches, and progression remain language-specific.
+
+Latin variants share the same beginner curriculum and have distinct pronunciation guidance.
+Choose **Latin - Classical** (`/latin`) for restored Classical pronunciation or
+**Latin - Ecclesiastical** (`/latin-ecclesiastical`) for the Italian tradition.
+The pronunciation details appear in the language selector; both pages are titled
+**Latin through tiny stories**. Ecclesiastical Latin has its own monastery-library
+artwork and book-carrying robot tutor.
+For this pronunciation experiment, select **Gemini 3.8 Flash** in Settings.
+Existing Latin recordings are reused; the new pronunciation guidance applies to
+newly generated audio. The two variants keep separate stories and word recordings.
 
 ## The learner experience
 

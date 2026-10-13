@@ -7,6 +7,7 @@ import {
 import "../gallery/gallery.css";
 import { GalleryModal } from "../gallery/GalleryModal";
 import type { Language } from "../languages";
+import { readSelectedNarrationModel } from "../modelSelection/modelSelectionStore";
 import type { StoryFeedbackRecord } from "../storyFeedback";
 import type { StoryRecapExerciseResult, StoryRecapLesson } from "../storyRecap";
 import { isStoryName } from "../storyVocabulary";
@@ -209,7 +210,11 @@ export default function ExerciseScreen({
 		const existingUrl = audioUrl ?? wordAudioUrls[normalizedWord];
 		(existingUrl
 			? Promise.resolve(existingUrl)
-			: getWordAudioUrl(language.id, normalizedWord)
+			: getWordAudioUrl(
+					language.id,
+					normalizedWord,
+					readSelectedNarrationModel(),
+				)
 		)
 			.then((url) => {
 				if (!existingUrl) {

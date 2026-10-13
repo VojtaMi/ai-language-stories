@@ -273,10 +273,11 @@ export async function generateOpeningAudio(
 export async function getWordAudioUrl(
 	genreId: LanguageId,
 	word: string,
+	ttsModel: TtsModelId,
 ): Promise<string> {
 	const body = await postJson<{ url: string }>(
 		"/api/word-audio",
-		{ genreId, word },
+		{ genreId, word, ttsModel },
 		"Word audio request",
 	);
 	return body.url;
@@ -355,6 +356,9 @@ export async function askLanguageTutor({
 			content:
 				`You are ${language.label} Bot, a friendly tutor inside a ${language.label} reading story. ` +
 				`Explain ${language.label} clearly and practically: ${language.teachingTopics}. ` +
+				(language.pronunciationGuidance
+					? `When explaining pronunciation: ${language.pronunciationGuidance} `
+					: "") +
 				"Use the provided story context when it helps. Do not continue or rewrite the story unless the learner asks for that. " +
 				"If the learner asks for an exercise answer, prefer a helpful hint and explanation before giving the full answer. " +
 				"Reply in the language the learner uses for their latest message. If their message is mixed or ambiguous, reply in English. " +

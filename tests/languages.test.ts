@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
+import { askLanguageTutor } from "../src/ai.ts";
 import {
 	getLanguage,
 	languageBotImageUrl,
 	languageFaviconUrl,
 	languageHeroImageUrl,
+	languageSelectionLabel,
 	languages,
+	languageTtsInstructions,
 	starterBriefForLanguage,
 } from "../src/languages.ts";
 import {
@@ -101,6 +104,52 @@ assert.match(latinPrompt, /Never simplify by dropping case endings/);
 assert.match(latinPrompt, /ablative for location/);
 assert.match(latinPrompt, /accusative for motion into/);
 assert.match(latinPrompt, /Decline Latin personal names correctly/);
+
+const ecclesiastical = getLanguage("latin-ecclesiastical");
+assert.equal(latin.label, "Latin");
+assert.equal(ecclesiastical.label, "Latin");
+assert.equal(languageSelectionLabel(latin), "Latin - Classical");
+assert.equal(languageSelectionLabel(ecclesiastical), "Latin - Ecclesiastical");
+assert.deepEqual(
+	starterBriefForLanguage(ecclesiastical),
+	starterBriefForLanguage(latin),
+);
+assert.equal(ecclesiastical.grammarInvariants, latin.grammarInvariants);
+assert.match(languageTtsInstructions(latin), /restored Classical Latin/);
+assert.match(languageTtsInstructions(latin), /Consonantal v is \[w\]/);
+assert.match(languageTtsInstructions(latin), /c is always \[k\]/);
+assert.match(
+	languageTtsInstructions(ecclesiastical),
+	/Roman Ecclesiastical Latin/,
+);
+assert.match(languageTtsInstructions(ecclesiastical), /Consonantal v is \[v\]/);
+assert.match(languageTtsInstructions(ecclesiastical), /\[tʃ\]/);
+assert.notEqual(
+	createBundleId(latin.id, "Test story", "ABCDEF12"),
+	createBundleId(ecclesiastical.id, "Test story", "ABCDEF12"),
+);
+
+const originalFetch = globalThis.fetch;
+try {
+	for (const language of [latin, ecclesiastical]) {
+		globalThis.fetch = async (_url, init) => {
+			const body = JSON.parse(String(init?.body));
+			assert.ok(
+				body.messages[0].content.includes(language.pronunciationGuidance),
+			);
+			return Response.json({ text: "Pronunciation explanation." });
+		};
+		await askLanguageTutor({
+			language,
+			segments: [],
+			currentTarget: null,
+			conversation: [],
+			question: "How do I pronounce Cicero?",
+		});
+	}
+} finally {
+	globalThis.fetch = originalFetch;
+}
 
 assert.equal(isStoryName("Petron", ["Petro"], "esperanto"), true);
 assert.equal(isStoryName("Petron", ["Petro"], "german"), false);

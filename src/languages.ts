@@ -3,6 +3,7 @@ import type { NextStoryBrief } from "./nextStoryBrief";
 interface LanguageDefinition<Id extends string = string> {
 	id: Id;
 	label: string;
+	selectionLabel?: string;
 	shortCode: string;
 	teachingTopics: string;
 	absoluteBeginnerGuidance: string;
@@ -10,6 +11,7 @@ interface LanguageDefinition<Id extends string = string> {
 	starterFocus: string;
 	calibrationSnippets: string[];
 	recapTitle: string;
+	pronunciationGuidance?: string;
 }
 
 function defineLanguages<const Id extends string>(
@@ -17,6 +19,21 @@ function defineLanguages<const Id extends string>(
 ): LanguageDefinition<Id>[] {
 	return languages;
 }
+
+const latinCurriculum = {
+	teachingTopics:
+		"vocabulary, noun declensions and cases, adjective agreement, verb conjugation, vowel quantity, pronunciation, and why sentences mean what they mean",
+	absoluteBeginnerGuidance:
+		"Use clear Latin with short present-indicative sentences, explicit subjects, common first- and second-declension nouns, and concrete everyday vocabulary. Start with nominative subjects, est, and simple intransitive verbs; introduce in with the ablative for location. Add accusative direct objects or motion expressions only when language.focus introduces them. Latin has no articles: do not invent them. Prefer straightforward word order without poetic rearrangement. Avoid subjunctives, passive voice, participles, ablative absolutes, indirect statement, and complex subordination until introduced by language.focus. These Latin variants differ only in pronunciation; do not assume religious themes. Use ordinary modern Latin spelling without macrons consistently in story prose; explain vowel quantity in English when useful.",
+	grammarInvariants:
+		"Never simplify by dropping case endings. Keep noun and adjective gender, number, and case agreement and subject-verb person and number agreement correct. Use nominative subjects and accusative direct objects; distinguish in with the ablative for location from in with the accusative for motion into. Decline Latin personal names correctly when their syntactic role requires it. Do not add articles or force English word order.",
+	starterFocus:
+		"Short present-indicative Latin sentences with concrete beginner words; practise singular nominative subjects, est, simple intransitive verbs, and in with the ablative for location. Avoid direct objects and complex clauses.",
+	calibrationSnippets: [
+		"Iulia est puella. Iulia in horto est. Hortus parvus est. Marcus in horto ambulat. Iulia sedet. Marcus cantat.",
+	],
+	recapTitle: "Exercitatio brevis",
+};
 
 export const languages = defineLanguages([
 	{
@@ -105,21 +122,22 @@ export const languages = defineLanguages([
 		recapTitle: "Pieni harjoitus",
 	},
 	{
+		...latinCurriculum,
 		id: "latin",
 		label: "Latin",
+		selectionLabel: "Latin - Classical",
 		shortCode: "LA",
-		teachingTopics:
-			"vocabulary, noun declensions and cases, adjective agreement, verb conjugation, vowel quantity, pronunciation, and why sentences mean what they mean",
-		absoluteBeginnerGuidance:
-			"Use clear Classical Latin with short present-indicative sentences, explicit subjects, common first- and second-declension nouns, and concrete everyday vocabulary. Start with nominative subjects, est, and simple intransitive verbs; introduce in with the ablative for location. Add accusative direct objects or motion expressions only when language.focus introduces them. Latin has no articles: do not invent them. Prefer straightforward word order without poetic rearrangement. Avoid subjunctives, passive voice, participles, ablative absolutes, indirect statement, and complex subordination until introduced by language.focus. Use ordinary modern Latin spelling without macrons consistently in story prose; explain vowel quantity in English when useful.",
-		grammarInvariants:
-			"Never simplify by dropping case endings. Keep noun and adjective gender, number, and case agreement and subject-verb person and number agreement correct. Use nominative subjects and accusative direct objects; distinguish in with the ablative for location from in with the accusative for motion into. Decline Latin personal names correctly when their syntactic role requires it. Do not add articles or force English word order.",
-		starterFocus:
-			"Short present-indicative Latin sentences with concrete beginner words; practise singular nominative subjects, est, simple intransitive verbs, and in with the ablative for location. Avoid direct objects and complex clauses.",
-		calibrationSnippets: [
-			"Iulia est puella. Iulia in horto est. Hortus parvus est. Marcus in horto ambulat. Iulia sedet. Marcus cantat.",
-		],
-		recapTitle: "Exercitatio brevis",
+		pronunciationGuidance:
+			"Use restored Classical Latin pronunciation consistently. Consonantal v is [w], as English w in wine; c is always [k], including before i and ae; ae is the diphthong [ae̯], approximately English eye. Vinum begins with [w]; Cicero has two hard [k] sounds; Caesar begins [kae̯]. Observe classical vowel quantities and Latin stress.",
+	},
+	{
+		...latinCurriculum,
+		id: "latin-ecclesiastical",
+		label: "Latin",
+		selectionLabel: "Latin - Ecclesiastical",
+		shortCode: "LAE",
+		pronunciationGuidance:
+			"Use Italianate Roman Ecclesiastical Latin pronunciation consistently. Consonantal v is [v], as English v in vine; c before e, i, ae, oe or y is [tʃ], as English ch in church; ae is a single [e] vowel. Vinum begins with [v]; Cicero has two [tʃ] sounds; Caesar begins [tʃe]. Use Latin stress, not an English accent.",
 	},
 ]);
 
@@ -142,6 +160,10 @@ export function languageStorySystemPrompt(language: Language): string {
 	return `Create an engaging ${language.label} story of your choice. Write the story prose in clear, natural ${language.label} for a true beginner; keep explanations and metadata in English.`;
 }
 
+export function languageSelectionLabel(language: Language): string {
+	return language.selectionLabel ?? language.label;
+}
+
 export function languageHeroImageUrl(language: Language): string {
 	return `/images/${language.id}-story-hero.avif`;
 }
@@ -155,7 +177,12 @@ export function languageFaviconUrl(language: Language): string {
 }
 
 export function languageTtsInstructions(language: Language): string {
-	return `Keep ${language.label} pronunciation clear, natural, and learner-friendly.`;
+	return [
+		language.pronunciationGuidance,
+		`Keep ${language.label} pronunciation clear, natural, and learner-friendly.`,
+	]
+		.filter(Boolean)
+		.join(" ");
 }
 
 export function starterBriefForLanguage(language: Language): NextStoryBrief {

@@ -2,8 +2,6 @@ import type { GeminiTtsModel } from "./server/tts/constants";
 
 export const TTS_MODELS = [
 	{ id: "openai", label: "OpenAI (gpt-4o-mini-tts)" },
-	{ id: "gemini-2.5-flash-preview-tts", label: "Gemini 2.5 Flash (preview)" },
-	{ id: "gemini-3.1-flash-tts-preview", label: "Gemini 3.1 Flash (preview)" },
 	{ id: "gemini-3.8-flash-tts", label: "Gemini 3.8 Flash" },
 	{ id: "gemini-3.8-flash-lite-tts", label: "Gemini 3.8 Flash-Lite" },
 ] as const;
@@ -36,18 +34,6 @@ const TTS_MODEL_INFO: Record<TtsModelId, TtsModelInfo> = {
 		extension: "mp3",
 		mimeType: "audio/mpeg",
 		model: "gpt-4o-mini-tts",
-	},
-	"gemini-2.5-flash-preview-tts": {
-		provider: "gemini",
-		extension: "wav",
-		mimeType: "audio/wav",
-		model: "gemini-2.5-flash-preview-tts",
-	},
-	"gemini-3.1-flash-tts-preview": {
-		provider: "gemini",
-		extension: "wav",
-		mimeType: "audio/wav",
-		model: "gemini-3.1-flash-tts-preview",
 	},
 	"gemini-3.8-flash-tts": {
 		provider: "gemini",

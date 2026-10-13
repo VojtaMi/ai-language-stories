@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import type OpenAI from "openai";
+import { getWordAudioUrl } from "../src/ai.ts";
 import {
 	readSelectedChatModel,
 	readSelectedNarrationModel,
@@ -67,10 +68,7 @@ assert.equal(isTextModelAvailable("gpt-6-sol", openaiOnly), true);
 assert.equal(isTextModelAvailable("gemini-2.5-flash", openaiOnly), false);
 assert.equal(isTextModelAvailable("claude-sonnet-4-6", openaiOnly), false);
 assert.equal(isTtsModelAvailable("openai", openaiOnly), true);
-assert.equal(
-	isTtsModelAvailable("gemini-3.1-flash-tts-preview", openaiOnly),
-	false,
-);
+assert.equal(isTtsModelAvailable("gemini-3.8-flash-tts", openaiOnly), false);
 console.log("checked model selection: provider availability");
 
 assert.equal(OPENAI_IMAGE_MODEL, "gpt-image-2.5-flare");
@@ -91,7 +89,7 @@ try {
 		getStoryGenerationPreset("terra-medium"),
 		"previous-story",
 		"a floating city",
-		"gemini-3.1-flash-tts-preview",
+		"gemini-3.8-flash-tts",
 	);
 } finally {
 	globalThis.fetch = originalFetch;
@@ -102,9 +100,28 @@ assert.deepEqual(requestBody, {
 	reasoningEffort: "medium",
 	basedOnStoryId: "previous-story",
 	nextTheme: "a floating city",
-	ttsModel: "gemini-3.1-flash-tts-preview",
+	ttsModel: "gemini-3.8-flash-tts",
 });
 console.log("checked model selection: reading request forwards the preset");
+
+globalThis.fetch = async (_input, init) => {
+	requestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+	return Response.json({ url: "/api/word-audio/latin/vinum?v=1" });
+};
+try {
+	assert.equal(
+		await getWordAudioUrl("latin", "vinum", "gemini-3.8-flash-tts"),
+		"/api/word-audio/latin/vinum?v=1",
+	);
+	assert.deepEqual(requestBody, {
+		genreId: "latin",
+		word: "vinum",
+		ttsModel: "gemini-3.8-flash-tts",
+	});
+} finally {
+	globalThis.fetch = originalFetch;
+}
+console.log("checked word audio: client forwards the selected narration model");
 
 console.log("\nmodel selection checks passed");
 

@@ -6,6 +6,7 @@ import {
 	languageBotImageUrl,
 	languageFaviconUrl,
 	languageHeroImageUrl,
+	languageSelectionLabel,
 	languages,
 } from "../src/languages.ts";
 import {
@@ -40,13 +41,19 @@ const selectedLanguages = requestedIds.length
 		})
 	: languages;
 
-for (const field of ["id", "label", "shortCode"] as const) {
+for (const field of ["id", "shortCode"] as const) {
 	const duplicates = duplicateValues(
 		languages.map((language) => language[field]),
 	);
 	for (const value of duplicates) {
 		errors.push(`${field} must be unique; "${value}" is used more than once.`);
 	}
+}
+
+for (const value of duplicateValues(languages.map(languageSelectionLabel))) {
+	errors.push(
+		`Language selection labels must be unique; "${value}" is used more than once.`,
+	);
 }
 
 for (const language of selectedLanguages) {

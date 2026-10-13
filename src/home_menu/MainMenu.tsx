@@ -3,6 +3,7 @@ import {
 	type Language,
 	type LanguageId,
 	languageHeroImageUrl,
+	languageSelectionLabel,
 	languages,
 } from "../languages";
 import type { StoryGenerationPresetId } from "../models";
@@ -69,7 +70,7 @@ export default function MainMenu({
 					>
 						{languages.map((candidate) => (
 							<option key={candidate.id} value={candidate.id}>
-								{candidate.label}
+								{languageSelectionLabel(candidate)}
 							</option>
 						))}
 					</select>

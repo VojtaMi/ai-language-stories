@@ -164,7 +164,7 @@ export async function handleWordAudioRequest(
 	res: ServerResponse,
 	openai: OpenAI,
 ) {
-	const { genreId, word } = JSON.parse(await readBody(req));
+	const { genreId, word, ttsModel } = JSON.parse(await readBody(req));
 	if (!isLanguageId(genreId)) {
 		sendJson(res, 400, { error: "genreId is invalid." });
 		return;
@@ -178,7 +178,12 @@ export async function handleWordAudioRequest(
 		sendJson(res, 400, { error: "word contains unsupported characters." });
 		return;
 	}
-	const url = await getOrCreateWordAudio(openai, genreId, normalizedWord);
+	const url = await getOrCreateWordAudio(
+		openai,
+		genreId,
+		normalizedWord,
+		isTtsModelId(ttsModel) ? ttsModel : DEFAULT_TTS_MODEL,
+	);
 	sendJson(res, 200, { url });
 }
 
