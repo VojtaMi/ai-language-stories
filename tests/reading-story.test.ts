@@ -17,6 +17,11 @@ import {
 	readingManuscriptMessages,
 } from "../src/reading_story/manuscript.ts";
 import {
+	applyManuscriptCorrections,
+	parseManuscriptCorrections,
+	READING_STORY_PROOFREAD_MODEL,
+} from "../src/reading_story/proofread.ts";
+import {
 	readingStorySentences,
 	readingStorySplitMessages,
 	splitReadingManuscript,
@@ -474,6 +479,13 @@ const generated = await generateReadingStory(
 		if (system.includes("finished manuscript")) {
 			return JSON.stringify(manuscript);
 		}
+		if (system.includes("proofreader")) {
+			assert.equal(
+				JSON.parse(messages[1]?.content ?? "{}").text,
+				manuscript.text,
+			);
+			return '{"corrections":[]}';
+		}
 		if (system.includes("presentation parts")) {
 			return '{"breakAfterSentence":[4,8]}';
 		}
@@ -505,11 +517,73 @@ assert.deepEqual(
 		{ model: READING_STORY_PLOT_MODEL, reasoningEffort: "low" },
 		{ model: READING_STORY_PLOT_MODEL, reasoningEffort: "low" },
 		{ reasoningEffort: "medium" },
+		{ model: READING_STORY_PROOFREAD_MODEL, reasoningEffort: "medium" },
 		{ model: DEFAULT_TEXT_MODEL },
 		{ model: READING_STORY_VISUAL_MODEL, reasoningEffort: "none" },
 	],
 );
-console.log("checked reading story: staged pipeline has five explicit calls");
+console.log("checked reading story: staged pipeline has six explicit calls");
+
+// --- Proofreading --------------------------------------------------------------
+
+const proofreadSource =
+	"Marco prope est. Livia dicit: Marco, veni. Una sacculus est. Una sacculus est.";
+const proofread = applyManuscriptCorrections(
+	proofreadSource,
+	parseManuscriptCorrections(
+		JSON.stringify({
+			corrections: [
+				{ original: "Marco prope est.", corrected: "Marcus prope est." },
+				// Ambiguous: occurs twice, so it must not be applied anywhere.
+				{ original: "Una sacculus est.", corrected: "Unus sacculus est." },
+				// A rewrite rather than a local correction.
+				{
+					original: "Livia dicit: Marco, veni.",
+					corrected:
+						"Livia, quae in statione diu exspectat, Marcum magna voce vocat et dicit: Marce, veni celeriter ad me.",
+				},
+				// Not in the text at all.
+				{ original: "Tramen venit.", corrected: "Tramen venit!" },
+				{ original: "Marcus", reason: "missing corrected field" },
+			],
+		}),
+	),
+);
+assert.equal(
+	proofread.text,
+	"Marcus prope est. Livia dicit: Marco, veni. Una sacculus est. Una sacculus est.",
+);
+assert.equal(proofread.applied.length, 1);
+
+const failedProofread = await generateReadingStory(
+	async (messages) => {
+		const system = messages[0]?.content ?? "";
+		if (system.includes("Prepare a short story plot")) return "A plot.";
+		if (system.includes("reviewing a short story draft")) return "OK";
+		if (system.includes("finished manuscript"))
+			return JSON.stringify(manuscript);
+		if (system.includes("proofreader")) throw new Error("provider down");
+		if (system.includes("presentation parts")) {
+			return '{"breakAfterSentence":[4,8]}';
+		}
+		return JSON.stringify({
+			visualContext: "Stable people and station.",
+			properNames: ["Mara"],
+			imagePrompts: ["Mara checks the map.", "Mara enters the train."],
+		});
+	},
+	genre,
+	preferences,
+	undefined,
+	{ nextStoryBrief },
+);
+assert.equal(
+	failedProofread.parts.map((part) => part.text).join(" "),
+	manuscript.text,
+);
+console.log(
+	"checked reading story: proofreading applies only local corrections",
+);
 
 // --- Final story validation and dynamic media cadence ------------------------
 

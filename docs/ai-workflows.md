@@ -12,7 +12,7 @@ generation, tutor, recap, image, and pronunciation guidance from
 
 | Operation | Owner |
 | --- | --- |
-| Complete story planning, manuscript, semantic split, visual plan | `src/server/openingsStore.ts`, `src/reading_story/`, `src/story.ts` |
+| Complete story planning, manuscript, proofreading, semantic split, visual plan | `src/server/openingsStore.ts`, `src/reading_story/`, `src/story.ts` |
 | Section narration and images | `src/story_session/readingMedia.ts`, `src/server/storyAudioStore.ts`, `src/server/images/` |
 | Contextual word glosses and pronunciation | `src/server/aiEndpointHandlers.ts`, `src/server/wordAudioStore.ts` |
 | Story recap | `src/storyRecap.ts` and `src/story_session/` |
