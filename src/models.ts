@@ -70,6 +70,15 @@ export const STORY_GENERATION_PRESETS = [
 		model: "gpt-5.6-luna",
 		reasoningEffort: "low",
 	},
+	// Compared on 27 manuscripts (eo/de/la, 2026-10-14): judged quality on par
+	// with GPT 5.6 Luna at under half the cost, slightly weaker on grammar,
+	// which the proofreading stage covers.
+	{
+		id: "luna6-low",
+		label: "GPT 6 Luna · Low",
+		model: "gpt-6-luna",
+		reasoningEffort: "low",
+	},
 ] as const satisfies readonly {
 	id: string;
 	label: string;

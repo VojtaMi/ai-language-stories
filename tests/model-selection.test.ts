@@ -35,7 +35,7 @@ Object.defineProperty(globalThis, "localStorage", { value: localStorageStub });
 
 assert.deepEqual(
 	STORY_GENERATION_PRESETS.map((preset) => preset.id),
-	["terra-medium", "terra-low", "luna-low"],
+	["terra-medium", "terra-low", "luna-low", "luna6-low"],
 );
 assert.deepEqual(getStoryGenerationPreset("terra-medium"), {
 	id: "terra-medium",
