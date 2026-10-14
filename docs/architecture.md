@@ -32,7 +32,12 @@ stories and progression are selected or keyed by `genreId`.
 
 ## Reading lifecycle
 
-The prepared queue holds at most one complete story per language. The first uses
+Learner state is scoped by an anonymous learner id that the browser creates
+before its first API call (`src/learnerIdentity.ts`) and the server reads from
+a cookie (`src/server/learnerScope.ts`). Learner endpoints refuse requests
+without one rather than falling back to shared state.
+
+The prepared queue holds at most one complete story per language and learner. The first uses
 that language's absolute-beginner starter brief. Finishing a story distills its
 word lookups, tutor questions, recap, and feedback into one validated successor
 brief. Story memory records include `genreId` and generation sees only matching

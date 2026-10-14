@@ -21,8 +21,13 @@ The interface is currently English. Language selection is window-specific via
 `/esperanto`, `/german`, `/spanish`, `/dutch`, `/finnish`, `/latin`, or
 `/latin-ecclesiastical`, while the most recently selected
 language is remembered locally for the next unqualified home visit. Explicit
-`prefer` and `avoid` story settings are shared; stories, preparation queues,
-evidence, pronunciation caches, and progression remain language-specific.
+`prefer` and `avoid` story settings are shared across languages; stories,
+preparation queues, evidence, pronunciation caches, and progression remain
+language-specific.
+
+There are no accounts. Each browser gets an anonymous learner id (a random
+cookie), and the server keeps that learner's settings, story memory, word
+lookups, and prepared next stories apart from every other visitor's.
 
 Latin variants share the same beginner curriculum and have distinct pronunciation guidance.
 Choose **Latin - Classical** (`/latin`) for restored Classical pronunciation or

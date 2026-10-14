@@ -34,6 +34,7 @@ import { DEFAULT_TTS_MODEL, type TtsModelId } from "../ttsModel";
 import { completeStructuredAi, translateWords } from "./aiService";
 import { buildStoryBackgroundPrompt, generateStoryImage } from "./images";
 import { readLearnerContext } from "./learnerProfileStore";
+import { learnerReadingOpeningsDir } from "./learnerScope";
 import { createOpeningAudio } from "./storyAudioStore";
 import {
 	bundledImagesPath,
@@ -44,7 +45,6 @@ import {
 } from "./storyBundleStore";
 import { readFinishEvidence } from "./storyFinishEvidenceStore";
 
-const readingOpeningsDir = join(process.cwd(), "reading-openings");
 const storyImagesDir = join(process.cwd(), "story-images");
 
 export const imageFilePattern = /^[a-zA-Z0-9_-]+\.(jpe?g|png|webp)$/;
@@ -76,11 +76,13 @@ interface PreparedReadingOpening
 	basedOnStoryId: string | null;
 }
 
-export async function listPreparedReadingOpenings(genreId?: LanguageId) {
-	await mkdir(readingOpeningsDir, { recursive: true });
+export async function listPreparedReadingOpenings(
+	learnerId: string,
+	genreId?: LanguageId,
+) {
 	const openings = await Promise.all(
 		(genreId ? [getLanguage(genreId)] : languages).map(async (genre) =>
-			readPreparedReadingOpening(genre.id),
+			readPreparedReadingOpening(learnerId, genre.id),
 		),
 	);
 
@@ -94,6 +96,7 @@ export async function listPreparedReadingOpenings(genreId?: LanguageId) {
 
 export async function prepareMissingReadingOpenings(
 	openai: OpenAI,
+	learnerId: string,
 	genreId: LanguageId = "esperanto",
 	model = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
@@ -102,16 +105,14 @@ export async function prepareMissingReadingOpenings(
 	reasoningEffort: TextReasoningEffort = "low",
 	ttsModel: TtsModelId = DEFAULT_TTS_MODEL,
 ) {
-	await mkdir(readingOpeningsDir, { recursive: true });
-
 	for (const genre of [getLanguage(genreId)]) {
 		try {
-			const existing = await readPreparedReadingOpening(genre.id);
+			const existing = await readPreparedReadingOpening(learnerId, genre.id);
 			if (existing && existing.basedOnStoryId !== basedOnStoryId) {
 				// Stale relative to the finalization this call follows: it was
 				// generated against a different predecessor's handoff.
 				// The queue is a cache, not history — discard it and generate fresh.
-				await rm(readingOpeningPath(genre.id), { force: true });
+				await rm(readingOpeningPath(learnerId, genre.id), { force: true });
 			} else if (existing) {
 				let changed = false;
 				const next: PreparedReadingOpening = { ...existing };
@@ -158,12 +159,13 @@ export async function prepareMissingReadingOpenings(
 					);
 					changed = true;
 				}
-				if (changed) await writePreparedReadingOpening(next);
+				if (changed) await writePreparedReadingOpening(learnerId, next);
 				continue;
 			}
 
 			const opening = await createPreparedReadingOpening(
 				openai,
+				learnerId,
 				genre,
 				model,
 				anthropicKey,
@@ -172,7 +174,7 @@ export async function prepareMissingReadingOpenings(
 				reasoningEffort,
 				ttsModel,
 			);
-			await writePreparedReadingOpening(opening);
+			await writePreparedReadingOpening(learnerId, opening);
 		} catch (err) {
 			console.warn(`Could not prepare ${genre.label} reading opening.`, err);
 		}
@@ -180,11 +182,12 @@ export async function prepareMissingReadingOpenings(
 }
 
 export async function consumePreparedReadingOpening(
+	learnerId: string,
 	genreId: LanguageId,
 ): Promise<PreparedReadingOpening | null> {
-	const opening = await readPreparedReadingOpening(genreId);
+	const opening = await readPreparedReadingOpening(learnerId, genreId);
 	if (!opening) return null;
-	await rm(readingOpeningPath(genreId), { force: true });
+	await rm(readingOpeningPath(learnerId, genreId), { force: true });
 	return opening;
 }
 
@@ -216,6 +219,7 @@ export function findLanguage(genreId: string): Language | undefined {
 
 async function createPreparedReadingOpening(
 	openai: OpenAI,
+	learnerId: string,
 	genre: Language,
 	model = DEFAULT_TEXT_MODEL,
 	anthropicKey = "",
@@ -224,7 +228,7 @@ async function createPreparedReadingOpening(
 	reasoningEffort: TextReasoningEffort = "low",
 	ttsModel: TtsModelId = DEFAULT_TTS_MODEL,
 ): Promise<PreparedReadingOpening> {
-	const { preferences, storyMemory } = await readLearnerContext();
+	const { preferences, storyMemory } = await readLearnerContext(learnerId);
 	// The previous story's finalizer owns the complete pedagogical handoff. The
 	// first story starts from one fixed baseline rather than inferred history.
 	const nextStoryBrief = basedOnStoryId
@@ -417,10 +421,11 @@ async function generateBackgroundImage(
 }
 
 async function readPreparedReadingOpening(
+	learnerId: string,
 	genreId: LanguageId,
 ): Promise<PreparedReadingOpening | null> {
 	try {
-		const text = await readFile(readingOpeningPath(genreId), "utf8");
+		const text = await readFile(readingOpeningPath(learnerId, genreId), "utf8");
 		const opening = JSON.parse(text) as PreparedReadingOpening;
 		// The queue is a cache, not history: an entry written before stories were
 		// generated whole holds only a frame, so drop it and prepare a real one.
@@ -454,17 +459,20 @@ function isCompleteReadingStory(story: unknown): story is ReadingStory {
 	);
 }
 
-async function writePreparedReadingOpening(opening: PreparedReadingOpening) {
-	await mkdir(readingOpeningsDir, { recursive: true });
+async function writePreparedReadingOpening(
+	learnerId: string,
+	opening: PreparedReadingOpening,
+) {
+	await mkdir(learnerReadingOpeningsDir(learnerId), { recursive: true });
 	await writeFile(
-		readingOpeningPath(opening.genreId),
+		readingOpeningPath(learnerId, opening.genreId),
 		`${JSON.stringify(opening, null, 2)}\n`,
 		"utf8",
 	);
 }
 
-function readingOpeningPath(genreId: LanguageId) {
-	return join(readingOpeningsDir, `${genreId}.json`);
+function readingOpeningPath(learnerId: string, genreId: LanguageId) {
+	return join(learnerReadingOpeningsDir(learnerId), `${genreId}.json`);
 }
 
 function fallbackBackgroundUrl(genreId: LanguageId) {

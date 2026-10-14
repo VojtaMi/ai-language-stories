@@ -7,12 +7,17 @@ browser profile that created them.
 | Path | Contents and language scope |
 | --- | --- |
 | `stories/<language>/<id>/` | Server-side generated media and finish evidence used by the preparation/finalization pipeline. These are not browser save records. |
-| `reading-openings/<genreId>.json` | One prepared complete story per language. |
+| `reading-openings/<learner>/<genreId>.json` | One learner's prepared complete story per language. |
 | `word-audio/<genreId>/` | Language-specific pronunciation cache. |
 | `story-images/`, `story-audio/` | Legacy media location for older ids. |
-| `learner/state.json` | Shared explicit `prefer` and `avoid` settings plus language-tagged anti-repetition memory. |
-| `learner/word-log.json` | Story-scoped word evidence; story ids bind it to one language's progression chain. |
+| `learner/<learner>/state.json` | One learner's explicit `prefer` and `avoid` settings plus language-tagged anti-repetition memory. |
+| `learner/<learner>/word-log.json` | One learner's story-scoped word evidence; story ids bind it to one language's progression chain. |
 | `logs/`, `.artifacts/` | Optional traces and development output. |
+
+`<learner>` is the anonymous id in the browser's `learner_id` cookie, or
+`local` for CLI scripts. Clearing that cookie starts a fresh learner. Files
+written before learner scoping (`learner/state.json`, `reading-openings/*.json`)
+are no longer read.
 
 The browser stores `last-learning-language` plus saved stories in the
 `language-story-reader` IndexedDB database. Routes such as

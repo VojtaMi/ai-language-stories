@@ -33,6 +33,7 @@ import {
 	sendBufferWithRangeSupport,
 	sendJson,
 } from "./http";
+import { requireLearnerId } from "./learnerScope";
 import {
 	consumePreparedReadingOpening,
 	findLanguage,
@@ -167,7 +168,8 @@ function providerCallCharger(req: IncomingMessage) {
 // Keep the API server available without local credentials so the client can
 // show a useful setup message instead of failing during server startup.
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY || "missing-openai-key" });
-const prepareReadingPromises = new Map<LanguageId, Promise<void>>();
+/** In-flight preparations, keyed by learner and language. */
+const prepareReadingPromises = new Map<string, Promise<void>>();
 
 const mimeTypes: Record<string, string> = {
 	".html": "text/html; charset=utf-8",
@@ -260,7 +262,11 @@ async function handleRequest(
 				sendJson(res, 400, { error: "language is invalid." });
 				return;
 			}
-			sendJson(res, 200, await listPreparedReadingOpenings(languageId));
+			sendJson(
+				res,
+				200,
+				await listPreparedReadingOpenings(requireLearnerId(req), languageId),
+			);
 			return;
 		}
 
@@ -274,6 +280,7 @@ async function handleRequest(
 		}
 
 		if (pathname === "/api/reading-openings/prepare" && req.method === "POST") {
+			const learnerId = requireLearnerId(req);
 			const body = await readJsonBody(req);
 			if (!isLanguageId(body.genreId)) {
 				sendJson(res, 400, { error: "genreId is invalid." });
@@ -300,9 +307,11 @@ async function handleRequest(
 				sendJson(res, 400, { error: "reasoningEffort is invalid." });
 				return;
 			}
-			let preparation = prepareReadingPromises.get(body.genreId);
+			const preparationKey = `${learnerId}/${body.genreId}`;
+			let preparation = prepareReadingPromises.get(preparationKey);
 			preparation ??= prepareMissingReadingOpenings(
 				openai,
+				learnerId,
 				body.genreId,
 				body.model,
 				ANTHROPIC_API_KEY,
@@ -311,11 +320,15 @@ async function handleRequest(
 				body.reasoningEffort as TextReasoningEffort | undefined,
 				isTtsModelId(body.ttsModel) ? body.ttsModel : DEFAULT_TTS_MODEL,
 			).finally(() => {
-				prepareReadingPromises.delete(body.genreId);
+				prepareReadingPromises.delete(preparationKey);
 			});
-			prepareReadingPromises.set(body.genreId, preparation);
+			prepareReadingPromises.set(preparationKey, preparation);
 			await preparation;
-			sendJson(res, 200, await listPreparedReadingOpenings(body.genreId));
+			sendJson(
+				res,
+				200,
+				await listPreparedReadingOpenings(learnerId, body.genreId),
+			);
 			return;
 		}
 
@@ -326,22 +339,26 @@ async function handleRequest(
 			parts[3] === "consume" &&
 			req.method === "POST"
 		) {
+			const learnerId = requireLearnerId(req);
 			const genreId = parts[2];
 			if (!genreId || !findLanguage(genreId)) {
 				sendJson(res, 404, { error: "Language not found." });
 				return;
 			}
-			const cached = await consumePreparedReadingOpening(genreId as LanguageId);
+			const cached = await consumePreparedReadingOpening(
+				learnerId,
+				genreId as LanguageId,
+			);
 			if (cached) {
 				sendJson(res, 200, cached);
 				return;
 			}
-			const preparation = prepareReadingPromises.get(genreId as LanguageId);
+			const preparation = prepareReadingPromises.get(`${learnerId}/${genreId}`);
 			if (preparation) await preparation;
 			sendJson(
 				res,
 				200,
-				await consumePreparedReadingOpening(genreId as LanguageId),
+				await consumePreparedReadingOpening(learnerId, genreId as LanguageId),
 			);
 			return;
 		}

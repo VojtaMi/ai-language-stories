@@ -21,12 +21,13 @@ process.chdir(workDir);
 const {
 	appendLearnerWordLogEntry,
 	readWordLookupsForStory,
-	readWordLookupsSinceLastRefine,
 	pruneWordLogForStory,
-	advanceWordLogCursor,
 } = await import("../src/server/learnerWordLogStore.ts");
 const { readFinishEvidence, updateFinishEvidence } = await import(
 	"../src/server/storyFinishEvidenceStore.ts"
+);
+const { requireLearnerId, learnerStateDir } = await import(
+	"../src/server/learnerScope.ts"
 );
 const { readLearnerContext, writeLearnerContext } = await import(
 	"../src/server/learnerProfileStore.ts"
@@ -43,6 +44,8 @@ const { bundledFinishEvidencePath } = await import(
 const storyA = "esperanto--story-a--0001";
 const storyB = "german--story-b--0002";
 const storyC = "esperanto--story-c--0003";
+const learner = "11111111-1111-4111-8111-111111111111";
+const otherLearner = "22222222-2222-4222-8222-222222222222";
 const storyD = "spanish--story-d--0004";
 
 assert.equal(
@@ -66,38 +69,36 @@ const storyMemory = {
 
 try {
 	// --- Word-log scoping ---------------------------------------------------
-	// One unscoped (menu/standalone) lookup, story A looked up twice, story B once.
-	await appendLearnerWordLogEntry("libro"); // unscoped
-	await appendLearnerWordLogEntry("hundo", storyA);
-	await appendLearnerWordLogEntry("hundo", storyA);
-	await appendLearnerWordLogEntry("kato", storyB);
+	// Story A looked up twice, story B once, and another learner's lookup.
+	await appendLearnerWordLogEntry(learner, "hundo", storyA);
+	await appendLearnerWordLogEntry(learner, "hundo", storyA);
+	await appendLearnerWordLogEntry(learner, "kato", storyB);
+	await appendLearnerWordLogEntry(otherLearner, "hundo", storyA);
 
-	const aLookups = await readWordLookupsForStory(storyA);
+	const aLookups = await readWordLookupsForStory(learner, storyA);
 	assert.deepEqual(aLookups.aggregated, [{ word: "hundo", count: 2 }]);
 	assert.deepEqual(aLookups.lookups, ["hundo (2x)"]);
 	console.log("checked word-log: story A gets only its own aggregated lookups");
-
-	const bLookups = await readWordLookupsForStory(storyB);
-	assert.deepEqual(bLookups.aggregated, [{ word: "kato", count: 1 }]);
-
-	// The global (unscoped) path must NOT see either story's scoped lookups.
-	const unscoped = await readWordLookupsSinceLastRefine();
-	assert.deepEqual(unscoped.aggregated, [{ word: "libro", count: 1 }]);
-	assert.ok(unscoped.cursorCandidate, "unscoped summary carries a cursor");
-	console.log(
-		"checked word-log: global cursor path sees only unscoped lookups",
+	assert.deepEqual(
+		(await readWordLookupsForStory(otherLearner, storyA)).aggregated,
+		[{ word: "hundo", count: 1 }],
+		"another learner's lookups never mix into this learner's",
 	);
+	console.log("checked word-log: learners keep separate logs");
+
+	const bLookups = await readWordLookupsForStory(learner, storyB);
+	assert.deepEqual(bLookups.aggregated, [{ word: "kato", count: 1 }]);
 
 	// --- Story A finalizes before B; B's lookup stays attributed to B -------
 	// This is the leak the manager exists to prevent: A consuming B's lookups.
-	await pruneWordLogForStory(storyA);
+	await pruneWordLogForStory(learner, storyA);
 	assert.deepEqual(
-		(await readWordLookupsForStory(storyA)).aggregated,
+		(await readWordLookupsForStory(learner, storyA)).aggregated,
 		[],
 		"A's scoped lookups are consumed by its own finalization",
 	);
 	assert.deepEqual(
-		(await readWordLookupsForStory(storyB)).aggregated,
+		(await readWordLookupsForStory(learner, storyB)).aggregated,
 		[{ word: "kato", count: 1 }],
 		"B's lookup remains attributed to B after A finalizes",
 	);
@@ -105,17 +106,21 @@ try {
 		"checked word-log: A finalizing leaves B's lookup attributed to B",
 	);
 
-	// Advancing the global cursor (unscoped consumed) also must not touch B.
-	if (unscoped.cursorCandidate) {
-		await advanceWordLogCursor(unscoped.cursorCandidate);
-	}
-	assert.deepEqual((await readWordLookupsSinceLastRefine()).aggregated, []);
-	assert.deepEqual((await readWordLookupsForStory(storyB)).aggregated, [
-		{ word: "kato", count: 1 },
-	]);
-	console.log(
-		"checked word-log: advancing the global cursor leaves B untouched",
+	// --- Learner identity ----------------------------------------------------
+	assert.equal(
+		requireLearnerId({
+			headers: { cookie: `theme=dark; learner_id=${learner}` },
+		} as never),
+		learner,
 	);
+	for (const cookie of [undefined, "learner_id=../../etc", "learner_id="]) {
+		assert.throws(
+			() => requireLearnerId({ headers: { cookie } } as never),
+			/no learner id/,
+		);
+	}
+	assert.throws(() => learnerStateDir("../outside"), /Invalid learner id/);
+	console.log("checked learner identity: cookie ids are validated");
 
 	// --- Finish-evidence record: complete evidence and idempotence ------------
 	const bare = await readFinishEvidence(storyA);
@@ -216,7 +221,7 @@ try {
 
 	// --- Service-level finalization -----------------------------------------
 	process.env.OPENAI_API_KEY = "test-key";
-	await writeLearnerContext({
+	await writeLearnerContext(learner, {
 		preferences: DEFAULT_LEARNER_PREFERENCES,
 		storyMemory,
 	});
@@ -281,7 +286,7 @@ try {
 		difficulty: "right" as const,
 		practiceRequest: "the -ilo suffix kept slipping",
 	};
-	await finalizeStoryEvidence(fakeOpenai, evidence, "");
+	await finalizeStoryEvidence(fakeOpenai, learner, evidence, "");
 	assert.equal(
 		refinementCalls,
 		1,
@@ -307,7 +312,17 @@ try {
 			calibrationSnippets: ["La lernanto trankvile vizitas laborejon."],
 		},
 	});
-	const contextAfterFinalization = await readLearnerContext();
+	assert.deepEqual(
+		await readLearnerContext(otherLearner),
+		await (async () => {
+			const { DEFAULT_LEARNER_CONTEXT } = await import(
+				"../src/learnerState.ts"
+			);
+			return DEFAULT_LEARNER_CONTEXT;
+		})(),
+		"finalizing one learner's story leaves another learner's state untouched",
+	);
+	const contextAfterFinalization = await readLearnerContext(learner);
 	assert.deepEqual(contextAfterFinalization.storyMemory.recentStories[0], {
 		genreId: "esperanto",
 		motif: "finding a missing workshop tool",
@@ -319,13 +334,14 @@ try {
 		...storyMemory.recentStories[0],
 	});
 
-	await finalizeStoryEvidence(fakeOpenai, evidence, "");
+	await finalizeStoryEvidence(fakeOpenai, learner, evidence, "");
 	assert.equal(refinementCalls, 1, "identical finalization is a no-op");
 	// Late evidence is intentionally ignored once a story has finalized: feedback
 	// is resolved exactly once, when the next story is generated, so a reopened
 	// story cannot replace the already-bound handoff.
 	await finalizeStoryEvidence(
 		fakeOpenai,
+		learner,
 		{
 			...evidence,
 			learnerQuestions: [...evidence.learnerQuestions, "Why ilo?"],
@@ -346,7 +362,7 @@ try {
 	);
 	assert.equal(afterLate.difficulty, "right");
 
-	const contextBeforeRecovery = await readLearnerContext();
+	const contextBeforeRecovery = await readLearnerContext(learner);
 	const malformedOpenai = {
 		chat: {
 			completions: {
@@ -368,6 +384,7 @@ try {
 	};
 	await finalizeStoryEvidence(
 		malformedOpenai,
+		learner,
 		{
 			...evidence,
 			storyId: storyD,
@@ -390,7 +407,7 @@ try {
 		},
 	});
 	assert.deepEqual(
-		(await readLearnerContext()).storyMemory,
+		(await readLearnerContext(learner)).storyMemory,
 		contextBeforeRecovery.storyMemory,
 		"malformed handoff keeps the existing FIFO unchanged",
 	);
@@ -437,6 +454,7 @@ try {
 	] as const) {
 		await finalizeStoryEvidence(
 			handoffOpenai(proposed),
+			learner,
 			{
 				...evidence,
 				storyId,

@@ -24,6 +24,7 @@ import {
 } from "../src/models.ts";
 import { completeStructuredAi } from "../src/server/aiService.ts";
 import { readLearnerContext } from "../src/server/learnerProfileStore.ts";
+import { LOCAL_LEARNER_ID } from "../src/server/learnerScope.ts";
 import {
 	type ChatMessage,
 	type Complete,
@@ -157,7 +158,7 @@ export async function loadCliLearnerContext(
 	if (options.defaultLearner) {
 		return structuredClone(DEFAULT_LEARNER_CONTEXT);
 	}
-	if (!options.learnerStatePath) return readLearnerContext();
+	if (!options.learnerStatePath) return readLearnerContext(LOCAL_LEARNER_ID);
 
 	let raw: string;
 	try {

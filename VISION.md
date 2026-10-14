@@ -32,7 +32,7 @@ The app has a lightweight learner model for adaptive reading:
   `learner/word-log.json` as raw evidence that the word needed inspection.
 
 This is deliberately smaller than a full curriculum engine. The profile is the
-LLM-facing summary; the word log is raw evidence. Both are local single-user
+LLM-facing summary; the word log is raw evidence. Both are per-learner
 files.
 
 Finishing a reading story now closes with two steps:

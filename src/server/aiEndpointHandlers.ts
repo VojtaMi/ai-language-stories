@@ -23,6 +23,7 @@ import { withAiTraceMetadata } from "./aiTrace";
 import { readJsonBody, sendJson } from "./http";
 import { enqueueLearnerProfileMutation } from "./learnerProfileMutationQueue";
 import { readLearnerContext, writeLearnerContext } from "./learnerProfileStore";
+import { requireLearnerId } from "./learnerScope";
 import { appendLearnerWordLogEntry } from "./learnerWordLogStore";
 import { createBackgroundImage, findLanguage } from "./openingsStore";
 import { createOpeningAudio } from "./storyAudioStore";
@@ -314,10 +315,10 @@ export async function handleCompleteRequest(
 }
 
 export async function handleLearnerProfileGetRequest(
-	_req: IncomingMessage,
+	req: IncomingMessage,
 	res: ServerResponse,
 ) {
-	const context = await readLearnerContext();
+	const context = await readLearnerContext(requireLearnerId(req));
 	sendJson(res, 200, context);
 }
 
@@ -325,6 +326,7 @@ export async function handleLearnerPreferencesUpdateRequest(
 	req: IncomingMessage,
 	res: ServerResponse,
 ) {
+	const learnerId = requireLearnerId(req);
 	const body = await readJsonBody(req);
 	const fields = ["prefer", "avoid"] as const;
 	if (
@@ -343,7 +345,7 @@ export async function handleLearnerPreferencesUpdateRequest(
 
 	try {
 		const updated = await enqueueLearnerProfileMutation(async () => {
-			const current = await readLearnerContext();
+			const current = await readLearnerContext(learnerId);
 			const preferences = {
 				...current.preferences,
 				...Object.fromEntries(
@@ -353,7 +355,7 @@ export async function handleLearnerPreferencesUpdateRequest(
 				),
 				updated: new Date().toISOString().slice(0, 10),
 			};
-			await writeLearnerContext({ ...current, preferences });
+			await writeLearnerContext(learnerId, { ...current, preferences });
 			return preferences;
 		});
 		sendJson(res, 200, updated);
@@ -369,6 +371,7 @@ export async function handleFinalizeStoryEvidenceRequest(
 	openai: OpenAI,
 	anthropicKey: string,
 ) {
+	const learnerId = requireLearnerId(req);
 	const body = (await readJsonBody(req)) as Partial<StoryFinalizationInput>;
 	if (!isLanguageId(body.genreId)) {
 		sendJson(res, 400, { error: "genreId is invalid." });
@@ -452,6 +455,7 @@ export async function handleFinalizeStoryEvidenceRequest(
 
 	const nextStoryBrief = await finalizeStoryEvidence(
 		openai,
+		learnerId,
 		{
 			genreId: body.genreId,
 			storyId: body.storyId,
@@ -473,6 +477,7 @@ export async function handleLearnerWordLogRequest(
 	req: IncomingMessage,
 	res: ServerResponse,
 ) {
+	const learnerId = requireLearnerId(req);
 	const { genreId, word, storyId } = await readJsonBody(req);
 	if (!isLanguageId(genreId)) {
 		sendJson(res, 400, { error: "genreId is invalid." });
@@ -494,7 +499,7 @@ export async function handleLearnerWordLogRequest(
 		sendJson(res, 400, { error: "word contains unsupported characters." });
 		return;
 	}
-	await appendLearnerWordLogEntry(normalizedWord, storyId);
+	await appendLearnerWordLogEntry(learnerId, normalizedWord, storyId);
 	sendJson(res, 204, null);
 }
 

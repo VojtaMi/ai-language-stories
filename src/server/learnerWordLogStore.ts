@@ -1,28 +1,30 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { learnerStateDir } from "./learnerScope";
 
 export interface LearnerWordLogEntry {
 	word: string;
 	timestamp: string;
 	/**
-	 * The story the lookup happened in, when it happened during a reading story.
-	 * Scoped lookups are folded by that story's baseline finalization and never
-	 * by the global cursor, so a delayed finalization can't let one story consume
-	 * another story's lookups. Menu / standalone-tutor lookups stay unscoped.
+	 * The story the lookup happened in. Its finalization folds exactly these
+	 * lookups, so a delayed finalization can't consume another story's lookups.
 	 */
 	storyId?: string;
 }
 
-const learnerDir = join(process.cwd(), "learner");
-const wordLogPath = join(learnerDir, "word-log.json");
-const wordLogCursorPath = join(learnerDir, "word-log-cursor.json");
 const MAX_WORD_LOOKUP_SUMMARY = 20;
 
 let writeQueue: Promise<void> = Promise.resolve();
 
-async function readWordLog(): Promise<LearnerWordLogEntry[]> {
+function wordLogPath(learnerId: string) {
+	return join(learnerStateDir(learnerId), "word-log.json");
+}
+
+async function readWordLog(learnerId: string): Promise<LearnerWordLogEntry[]> {
 	try {
-		const parsed = JSON.parse(await readFile(wordLogPath, "utf8")) as unknown;
+		const parsed = JSON.parse(
+			await readFile(wordLogPath(learnerId), "utf8"),
+		) as unknown;
 		if (!Array.isArray(parsed)) return [];
 		return parsed.filter(isLearnerWordLogEntry);
 	} catch {
@@ -30,38 +32,35 @@ async function readWordLog(): Promise<LearnerWordLogEntry[]> {
 	}
 }
 
-async function writeWordLog(log: LearnerWordLogEntry[]): Promise<void> {
-	await mkdir(learnerDir, { recursive: true });
-	await writeFile(wordLogPath, `${JSON.stringify(log, null, 2)}\n`, "utf8");
+async function writeWordLog(
+	learnerId: string,
+	log: LearnerWordLogEntry[],
+): Promise<void> {
+	await mkdir(learnerStateDir(learnerId), { recursive: true });
+	await writeFile(
+		wordLogPath(learnerId),
+		`${JSON.stringify(log, null, 2)}\n`,
+		"utf8",
+	);
 }
 
 export async function appendLearnerWordLogEntry(
+	learnerId: string,
 	word: string,
 	storyId?: string,
 ): Promise<void> {
 	writeQueue = writeQueue
 		.catch(() => undefined)
 		.then(async () => {
-			const log = await readWordLog();
+			const log = await readWordLog(learnerId);
 			log.push({
 				word,
 				timestamp: new Date().toISOString(),
 				...(storyId ? { storyId } : {}),
 			});
-			await writeWordLog(log);
+			await writeWordLog(learnerId, log);
 		});
 	return writeQueue;
-}
-
-async function readWordLogCursor(): Promise<string | null> {
-	try {
-		const parsed = JSON.parse(await readFile(wordLogCursorPath, "utf8")) as {
-			cursor?: string;
-		};
-		return typeof parsed.cursor === "string" ? parsed.cursor : null;
-	} catch {
-		return null;
-	}
 }
 
 /** One word looked up, and how many times, formatted for both prompt and audit. */
@@ -86,49 +85,17 @@ function aggregate(entries: LearnerWordLogEntry[]): AggregatedLookups {
 	};
 }
 
-export interface WordLookupSummary extends AggregatedLookups {
-	/** Max timestamp among the entries this summary covers, or null if none. Pass to {@link advanceWordLogCursor} once the caller has durably used this summary. */
-	cursorCandidate: string | null;
-}
-
-/**
- * Aggregates **unscoped** word-log clicks since the last time the profile was
- * refined from a finished story — menu / standalone-tutor lookups that belong to
- * no particular story. Story-scoped lookups are deliberately excluded here; they
- * are folded only by {@link readWordLookupsForStory} at their own story's
- * finalization. Does not advance the cursor itself — call
- * {@link advanceWordLogCursor} with the returned cursorCandidate only after the
- * evidence has been durably folded into the profile. Repeated lookups sort
- * first, since repeat clicks are stronger evidence than a single click.
- */
-export async function readWordLookupsSinceLastRefine(): Promise<WordLookupSummary> {
-	const [log, cursor] = await Promise.all([readWordLog(), readWordLogCursor()]);
-	const relevant = log.filter(
-		(entry) =>
-			entry.storyId === undefined && (!cursor || entry.timestamp > cursor),
-	);
-	if (relevant.length === 0) {
-		return { lookups: [], aggregated: [], cursorCandidate: null };
-	}
-
-	let maxTimestamp = relevant[0].timestamp;
-	for (const entry of relevant) {
-		if (entry.timestamp > maxTimestamp) maxTimestamp = entry.timestamp;
-	}
-
-	return { ...aggregate(relevant), cursorCandidate: maxTimestamp };
-}
-
 /**
  * Aggregates the word lookups that happened during one specific reading story.
  * Used by that story's baseline finalization, which runs at most once (guarded
- * by the finish-evidence record). The global cursor is never touched by this
- * path, so this story's lookups can never be attributed to another story.
+ * by the finish-evidence record), so this story's lookups can never be
+ * attributed to another story.
  */
 export async function readWordLookupsForStory(
+	learnerId: string,
 	storyId: string,
 ): Promise<AggregatedLookups> {
-	const log = await readWordLog();
+	const log = await readWordLog(learnerId);
 	return aggregate(log.filter((entry) => entry.storyId === storyId));
 }
 
@@ -137,24 +104,18 @@ export async function readWordLookupsForStory(
  * them in. Hygiene only: correctness comes from the baseline running once, not
  * from pruning. Unscoped entries and other stories' entries are left untouched.
  */
-export async function pruneWordLogForStory(storyId: string): Promise<void> {
+export async function pruneWordLogForStory(
+	learnerId: string,
+	storyId: string,
+): Promise<void> {
 	writeQueue = writeQueue
 		.catch(() => undefined)
 		.then(async () => {
-			const log = await readWordLog();
+			const log = await readWordLog(learnerId);
 			const kept = log.filter((entry) => entry.storyId !== storyId);
-			if (kept.length !== log.length) await writeWordLog(kept);
+			if (kept.length !== log.length) await writeWordLog(learnerId, kept);
 		});
 	return writeQueue;
-}
-
-export async function advanceWordLogCursor(cursor: string): Promise<void> {
-	await mkdir(learnerDir, { recursive: true });
-	await writeFile(
-		wordLogCursorPath,
-		`${JSON.stringify({ cursor }, null, 2)}\n`,
-		"utf8",
-	);
 }
 
 function isLearnerWordLogEntry(value: unknown): value is LearnerWordLogEntry {

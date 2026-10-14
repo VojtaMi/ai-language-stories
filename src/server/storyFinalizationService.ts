@@ -38,6 +38,7 @@ const finalizationTasks = new Map<string, Promise<NextStoryBrief>>();
 
 async function finalizeOnce(
 	openai: OpenAI,
+	learnerId: string,
 	evidence: StoryFinalizationInput,
 	anthropicKey: string,
 ): Promise<NextStoryBrief> {
@@ -52,8 +53,8 @@ async function finalizeOnce(
 
 	const practiceRequest = evidence.practiceRequest?.trim() || undefined;
 	const [scoped, learnerContext] = await Promise.all([
-		readWordLookupsForStory(evidence.storyId),
-		readLearnerContext(),
+		readWordLookupsForStory(learnerId, evidence.storyId),
+		readLearnerContext(learnerId),
 	]);
 	const handoff = await generateNextStoryBrief(
 		openai,
@@ -77,17 +78,17 @@ async function finalizeOnce(
 	const { nextStoryBrief, recentStory } = handoff;
 	if (recentStory) {
 		await enqueueLearnerProfileMutation(async () => {
-			const current = await readLearnerContext();
+			const current = await readLearnerContext(learnerId);
 			const storyMemory = mergeStoryMemory(
 				current.storyMemory,
 				recentStory,
 				new Date().toISOString().slice(0, 10),
 			);
-			await writeLearnerContext({ ...current, storyMemory });
+			await writeLearnerContext(learnerId, { ...current, storyMemory });
 		});
 	}
 
-	await pruneWordLogForStory(evidence.storyId);
+	await pruneWordLogForStory(learnerId, evidence.storyId);
 	await updateFinishEvidence(evidence.storyId, {
 		finalizedAt: new Date().toISOString(),
 		storySummary: evidence.storySummary,
@@ -105,6 +106,7 @@ async function finalizeOnce(
 
 export async function finalizeStoryEvidence(
 	openai: OpenAI,
+	learnerId: string,
 	evidence: StoryFinalizationInput,
 	anthropicKey: string,
 ): Promise<NextStoryBrief> {
@@ -112,7 +114,7 @@ export async function finalizeStoryEvidence(
 	if (existing) return existing;
 	const task = withAiTraceMetadata(
 		{ storyId: evidence.storyId, storyPhase: "finalize" },
-		() => finalizeOnce(openai, evidence, anthropicKey),
+		() => finalizeOnce(openai, learnerId, evidence, anthropicKey),
 	).finally(() => {
 		finalizationTasks.delete(evidence.storyId);
 	});
