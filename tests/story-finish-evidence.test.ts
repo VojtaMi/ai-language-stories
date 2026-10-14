@@ -266,6 +266,16 @@ try {
 			"La laboro povas komenciĝi.",
 		],
 		languageFocus: "Naming tools with the -ilo suffix",
+		generationBrief: {
+			themeSuggestion: "",
+			narrativeScale: "simple" as const,
+			language: {
+				focus: "Naming tools with the -ilo suffix",
+				progression: "advance" as const,
+				complexity: "similar" as const,
+				calibrationSnippets: ["La lernanto vizitas laborejon."],
+			},
+		},
 		learnerQuestions: ["What does ilo mean?"],
 		recapResults: [{ type: "word-connect", label: "ilo = tool", attempts: 1 }],
 		difficulty: "right" as const,
@@ -370,7 +380,8 @@ try {
 	const recoveredRecord = await readFinishEvidence(storyD);
 	assert.deepEqual(recoveredRecord.nextStoryBrief, {
 		themeSuggestion: "",
-		narrativeScale: "simple",
+		// "Too hard" shrinks the prior simple scale, with or without the model.
+		narrativeScale: "minimal",
 		language: {
 			focus: "Past-tense travel actions",
 			progression: "reinforce",
@@ -384,10 +395,62 @@ try {
 		"malformed handoff keeps the existing FIFO unchanged",
 	);
 	console.log(
-		"checked finalization recovery: prior scale survives malformed handoff",
+		"checked finalization recovery: rating applies to the prior scale",
 	);
 	console.log(
 		"checked finalization service: full evidence, idempotence, no late deltas",
+	);
+
+	// The rating, not the model, owns how much the next story may grow.
+	const handoffOpenai = (complexity: string) =>
+		({
+			chat: {
+				completions: {
+					create: async () => ({
+						choices: [
+							{
+								message: {
+									content: JSON.stringify({
+										themeSuggestion: "",
+										narrativeScale: "simple",
+										language: {
+											focus: "Accusative -n",
+											progression: "reinforce",
+											complexity,
+											calibrationSnippets: ["Niko vidas la ŝlosilon."],
+										},
+									}),
+								},
+							},
+						],
+					}),
+				},
+			},
+		}) as never;
+	const minimalBrief = {
+		...generationBrief,
+		narrativeScale: "minimal" as const,
+	};
+	for (const [storyId, proposed, expected] of [
+		["esperanto--story-e--0005", "harder", "similar"],
+		["esperanto--story-f--0006", "simpler", "simpler"],
+	] as const) {
+		await finalizeStoryEvidence(
+			handoffOpenai(proposed),
+			{
+				...evidence,
+				storyId,
+				generationBrief: minimalBrief,
+				difficulty: "right" as const,
+			},
+			"",
+		);
+		const brief = (await readFinishEvidence(storyId)).nextStoryBrief;
+		assert.equal(brief?.narrativeScale, "minimal", "right keeps the scale");
+		assert.equal(brief?.language.complexity, expected);
+	}
+	console.log(
+		"checked finalization handoff: rating bounds scale and complexity",
 	);
 
 	console.log("\nstory-finish evidence checks passed");
