@@ -59,6 +59,7 @@ Language:
 - Treat language.focus as the primary practice objective, but use it only where it fits naturally. Do not force it into every sentence, distort the plot, or add events merely to repeat it.
 - For establish, introduce the focus directly. For reinforce, practise it through a different situation and sentence pattern. For advance, use it as the learner's next step without adding unrelated targets.
 - Prefer natural, clear ${language.label} over inserting unrelated vocabulary or constructions. Avoid unrelated advanced grammar.
+- Keep vocabulary at the calibration snippets' level: high-frequency, everyday words a learner can recognise or infer from the scene. When an event would need an uncommon, technical, or specialised word, express it with common words or a simpler action instead. Reuse the story's few new content words rather than adding synonyms.
 - Keep the ${language.label} grammatical at every level. ${language.grammarInvariants} Never simplify by producing ungrammatical ${language.label}. If the focus says to avoid a construction, choose sentences that do not require it.
 - Write every narrative and dialogue word in ${language.label} except proper names. Convey meaning through the situation; do not insert English glosses or translations into the story.
 
