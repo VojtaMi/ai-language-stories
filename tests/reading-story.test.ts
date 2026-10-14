@@ -161,6 +161,24 @@ assert.equal(openPlotContext.storySubject, undefined);
 assert.deepEqual(openPlotContext.preferences, preferences);
 assert.equal(openPlotContext.recentStories[0].motif, "a lost red ball");
 assert.match(readingStoryPlotMessages(undefined)[0].content, /choose.*freely/i);
+assert.equal(
+	JSON.parse(
+		readingStoryPlotMessages(
+			undefined,
+			preferences,
+			"minimal",
+			[],
+			genre,
+			"Avoid plurals and direct objects.",
+		)[1].content,
+	).languageLimits,
+	"Avoid plurals and direct objects.",
+);
+assert.equal(
+	"languageLimits" in
+		JSON.parse(readingStoryPlotMessages(undefined)[1].content),
+	false,
+);
 const germanPlotContext = JSON.parse(
 	readingStoryPlotMessages(undefined, preferences, "minimal", [], {
 		...genre,
