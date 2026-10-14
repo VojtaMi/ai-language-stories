@@ -224,7 +224,7 @@
 .story-completion__preview {
 	display: block;
 	width: min(100%, 30rem);
-	margin-top: 0.5rem;
+	margin-top: 1rem;
 	padding: 0;
 	border: 1px solid var(--story-practice-rule);
 	border-radius: 8px;

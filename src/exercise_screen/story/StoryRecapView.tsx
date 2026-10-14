@@ -86,7 +86,7 @@ export function StoryRecapView({
 							</button>
 							<button
 								type="button"
-								className="story-practice__match-item"
+								className="story-practice__choice story-practice__match-item"
 								onClick={onSkip}
 							>
 								Skip recap
