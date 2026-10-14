@@ -129,6 +129,7 @@ function completedAiSegment(
 
 /** Keep buffered tutor questions bounded so the baseline evidence stays small. */
 const MAX_BUFFERED_BOT_QUESTIONS = 20;
+const MAX_BUFFERED_WORD_LOOKUPS = 40;
 const MAX_BOT_QUESTION_CHARS = 300;
 
 export function useStorySession({
@@ -197,6 +198,9 @@ export function useStorySession({
 	// buffered here (deduped, bounded) and folded once into the baseline at story
 	// end — they stay out of the durable handout until the story finalizes.
 	const botQuestionsRef = useRef<string[]>([]);
+	// Words tapped for help while reading. The server keeps the durable lookup
+	// log for the handoff; this copy steers the recap toward those words.
+	const wordLookupsRef = useRef<string[]>([]);
 	// Distinguishes a story that reached "finished" just now, in this session,
 	// from one loaded already finished (rereading an old save). Only the former
 	// should ever finalize: rereading must not re-finalize or re-trigger
@@ -296,6 +300,7 @@ export function useStorySession({
 				wordTranslations: wordTranslationsRef.current ?? undefined,
 				storyRecapResults: storyRecapResultsRef.current,
 				storyLearnerQuestions: botQuestionsRef.current,
+				storyWordLookups: wordLookupsRef.current,
 				...readStoryFeedbackSnapshot(),
 			}),
 	);
@@ -513,6 +518,7 @@ export function useStorySession({
 		readingMediaRef.current.reset();
 		justFinishedReadingRef.current = false;
 		botQuestionsRef.current = [];
+		wordLookupsRef.current = [];
 		storyRecapResultsRef.current = [];
 		resetStoryFeedback();
 		setGenre(selected);
@@ -652,6 +658,7 @@ export function useStorySession({
 					storyParts,
 					languageFocuses: [readingStory.languageFocus],
 					wordTranslations: translations,
+					lookedUpWords: wordLookupsRef.current,
 				});
 
 				storyRecapLessonRef.current = lesson;
@@ -1105,6 +1112,7 @@ export function useStorySession({
 				setStoryRecapLesson(save.storyRecapLesson ?? null);
 				storyRecapResultsRef.current = save.storyRecapResults ?? [];
 				botQuestionsRef.current = save.storyLearnerQuestions ?? [];
+				wordLookupsRef.current = save.storyWordLookups ?? [];
 				// A reopened save is never a live finish: its feedback form is
 				// read-only, showing only whatever rating was recorded before.
 				loadStoryFeedbackFromSave(
@@ -1282,6 +1290,18 @@ export function useStorySession({
 		],
 	);
 
+	/** Records a tapped word; it rides along with the story's next save. */
+	const captureWordLookup = useCallback((word: string) => {
+		const normalized = word.toLowerCase();
+		const lookups = wordLookupsRef.current;
+		if (
+			lookups.length < MAX_BUFFERED_WORD_LOOKUPS &&
+			!lookups.includes(normalized)
+		) {
+			lookups.push(normalized);
+		}
+	}, []);
+
 	const handleRegenerateWord = useCallback(
 		async (word: string): Promise<string | null> => {
 			try {
@@ -1338,6 +1358,7 @@ export function useStorySession({
 		retryReadingPreparation: readingPreparation.retry,
 		readingTotalParts: readingStory?.parts.length ?? null,
 		captureBotQuestions,
+		captureWordLookup,
 		retryStoryRecap,
 		segments,
 		skipStoryRecap,

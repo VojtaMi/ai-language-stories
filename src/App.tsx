@@ -165,6 +165,7 @@ function ReadingApp({
 		storyRecapLesson,
 		submitStoryFeedback,
 		captureBotQuestions,
+		captureWordLookup,
 		wordTranslations,
 	} = useStorySession({
 		language,
@@ -319,6 +320,7 @@ function ReadingApp({
 					onSubmitStoryFeedback={submitStoryFeedback}
 					onStoryFeedbackDraftChange={onStoryFeedbackDraftChange}
 					onCaptureBotQuestions={captureBotQuestions}
+					onWordLookup={captureWordLookup}
 				/>
 			)}
 			{inStory && !genre && (

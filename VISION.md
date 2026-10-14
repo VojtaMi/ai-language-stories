@@ -78,10 +78,9 @@ even before a structured scoring layer exists.
 
 Two follow-ups on top of the current recap feedback loop:
 
-- Recap generation doesn't yet deliberately target "Shaky / watch for" words —
-  it sees the full profile but picks vocabulary from whatever the story used.
-  Prompting it to prefer shaky words would make the quiz (and its resulting
-  evidence) more targeted.
+- Recap word-connect pairs now prefer the words the learner looked up while
+  reading that story, so a first-try match is direct evidence about a word that
+  needed help. It does not yet reach back to shaky words from earlier stories.
 - A possible branch on recap outcome: on an all-correct recap, offer an
   optional stretch round pulling from "Currently learning (their edge)"; on a
   missed item, offer optional remediation on that specific word. Neither

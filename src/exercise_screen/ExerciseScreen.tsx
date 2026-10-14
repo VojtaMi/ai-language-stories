@@ -77,6 +77,8 @@ interface ExerciseScreenProps {
 	onStoryFeedbackDraftChange: (record: StoryFeedbackRecord) => void;
 	/** Buffers the learner's tutor questions for the reading-story baseline. */
 	onCaptureBotQuestions: (questions: string[]) => void;
+	/** Records a story word the learner tapped for help. */
+	onWordLookup: (word: string) => void;
 }
 
 export default function ExerciseScreen({
@@ -111,6 +113,7 @@ export default function ExerciseScreen({
 	onSubmitStoryFeedback,
 	onStoryFeedbackDraftChange,
 	onCaptureBotQuestions,
+	onWordLookup,
 }: ExerciseScreenProps) {
 	const [galleryOpen, setGalleryOpen] = useState(false);
 	const [chatOpen, setChatOpen] = useState(false);
@@ -270,6 +273,7 @@ export default function ExerciseScreen({
 		// this story — scope it so the story's baseline (not the global cursor)
 		// folds it and no other story can consume it.
 		void logLearnerWordClick(language.id, token, storyId ?? undefined);
+		if (!isName) onWordLookup(token);
 		playWordAudio(token);
 
 		const rect = e.currentTarget.getBoundingClientRect();

@@ -30,6 +30,8 @@ export interface SavedStory
 	storyRecapLesson?: StoryRecapLesson | null;
 	storyRecapResults?: StoryRecapExerciseResult[];
 	storyLearnerQuestions?: string[];
+	/** Story words the learner tapped for help, in first-tap order. */
+	storyWordLookups?: string[];
 	storyFeedback?: string | null;
 	storyFeedbackSubmittedAt?: string | null;
 }

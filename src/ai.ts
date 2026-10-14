@@ -203,6 +203,8 @@ interface GenerateStoryRecapLessonInput {
 	storyParts: string[];
 	languageFocuses: string[];
 	wordTranslations: Record<string, string>;
+	/** Words the learner tapped for help while reading, in first-tap order. */
+	lookedUpWords?: string[];
 }
 
 export async function generateStoryRecapLesson(
@@ -229,6 +231,13 @@ export async function generateStoryRecapLesson(
 					"",
 					"Available word translations:",
 					JSON.stringify(input.wordTranslations, null, 2),
+					...(input.lookedUpWords?.length
+						? [
+								"",
+								"Words the learner looked up while reading:",
+								input.lookedUpWords.join(", "),
+							]
+						: []),
 				].join("\n"),
 			},
 		],

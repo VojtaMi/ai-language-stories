@@ -78,7 +78,8 @@ function wordConnectSpec(
 			pairs: [{ term: `${genre.label} word`, meaning: "English meaning" }],
 		},
 		instructions:
-			"Use exactly three word-connect pairs, using only words and facts from the story. Keep English meanings short.",
+			"Use exactly three word-connect pairs, using only words and facts from the story. Keep English meanings short. " +
+			"When the learner looked up words while reading, build the pairs from those words first, in their story forms, and fill any remaining pairs with other useful story words.",
 		parse(value) {
 			if (
 				!isObject(value) ||

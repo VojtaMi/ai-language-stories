@@ -25,6 +25,7 @@ interface StorySaveSnapshotInput {
 	storyRecapLesson?: StoryRecapLesson | null;
 	storyRecapResults?: StoryRecapExerciseResult[];
 	storyLearnerQuestions?: string[];
+	storyWordLookups?: string[];
 	storyFeedback?: string | null;
 	storyFeedbackSubmittedAt?: string | null;
 }
@@ -70,6 +71,7 @@ export function buildStorySaveSnapshot({
 	storyRecapLesson,
 	storyRecapResults,
 	storyLearnerQuestions,
+	storyWordLookups,
 	storyFeedback,
 	storyFeedbackSubmittedAt,
 }: StorySaveSnapshotInput): Omit<SavedStory, "updatedAt"> {
@@ -89,6 +91,7 @@ export function buildStorySaveSnapshot({
 		storyRecapLesson: storyRecapLesson ?? undefined,
 		storyRecapResults: storyRecapResults ?? undefined,
 		storyLearnerQuestions: storyLearnerQuestions ?? undefined,
+		storyWordLookups: storyWordLookups ?? undefined,
 		storyFeedback: storyFeedback ?? undefined,
 		...(backgroundImage ?? undefined),
 		...(openingAudio ?? undefined),
