@@ -48,7 +48,7 @@ export const languages = defineLanguages([
 		absoluteBeginnerGuidance:
 			"Prefer the basic tense required by language.focus; otherwise prefer present-tense copular, positional, and intransitive constructions. Repeat explicit nouns when that is clearer than pronouns or complex references. Avoid plurals and direct objects unless language.focus introduces them; rephrase grammatically instead of dropping required endings.",
 		grammarInvariants:
-			"Never simplify by dropping required accusative, plural, or agreement endings.",
+			"Never simplify by dropping required accusative, plural, or agreement endings. Equally, never add an accusative -n where it does not belong: not after prepositions (except to show direction of motion), not on predicate adjectives or nouns after esti, fariĝi, or ŝajni, and not on an object complement describing the object's resulting state (faras la feston gaja, not gajan).",
 		starterFocus:
 			"Simple present-tense sentences with concrete beginner words; avoid plurals and direct objects.",
 		calibrationSnippets: [

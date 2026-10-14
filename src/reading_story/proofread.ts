@@ -27,7 +27,7 @@ function proofreadPrompt(genre: Language) {
 
 Find every grammatical error in the ${genre.label} story text: wrong endings, case, gender or number agreement, verb forms, articles, prepositions governing the wrong case, wrongly inflected names, and misused function words. ${genre.grammarInvariants}
 
-Do not change style, vocabulary choice, difficulty, punctuation conventions, or meaning. Do not report anything that is grammatical, even if you would phrase it differently.
+Do not change style, vocabulary choice, difficulty, punctuation conventions, or meaning. Never change which character a pronoun refers to or a character's gender; the story may introduce people you cannot see in a sentence. Do not report anything that is grammatical, even if you would phrase it differently.
 
 For each error, copy the complete original sentence exactly as it appears in the text, and give the minimally corrected sentence.
 
