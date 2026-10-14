@@ -172,12 +172,31 @@ async function serveStatic(
 		const content = await readFile(filePath);
 		const mime = mimeTypes[extname(filePath)] ?? "application/octet-stream";
 		res.setHeader("Content-Type", mime);
+		// Vite content-hashes everything under /assets/; the HTML that names
+		// those hashes must always be revalidated.
+		res.setHeader(
+			"Cache-Control",
+			urlPath.startsWith("/assets/")
+				? "public, max-age=31536000, immutable"
+				: mime.startsWith("text/html")
+					? "no-cache"
+					: "public, max-age=3600",
+		);
 		res.statusCode = 200;
 		res.end(content);
 	} catch {
+		// Only app routes fall back to the SPA shell. A missing file — such as
+		// a stale hashed chunk after a deploy — must 404 rather than return HTML
+		// the browser would try to run as a script.
+		if (extname(urlPath)) {
+			res.statusCode = 404;
+			res.end("Not found");
+			return;
+		}
 		try {
 			const content = await readFile(join(distDir, "index.html"));
 			res.setHeader("Content-Type", "text/html; charset=utf-8");
+			res.setHeader("Cache-Control", "no-cache");
 			res.statusCode = 200;
 			res.end(content);
 		} catch {
