@@ -73,6 +73,9 @@ async function synthesizeWordAudio(
 	return wordAudioUrl(genreId, word, Date.now());
 }
 
+/** Concurrent misses for one word (a double tap) share one TTS call. */
+const pendingWordAudio = new Map<string, Promise<string>>();
+
 export async function getOrCreateWordAudio(
 	openai: OpenAI,
 	genreId: LanguageId,
@@ -88,8 +91,15 @@ export async function getOrCreateWordAudio(
 		return wordAudioUrl(genreId, word, Math.floor(cached.mtimeMs));
 	}
 
+	const key = `${genreId}/${word}`;
+	const pending = pendingWordAudio.get(key);
+	if (pending) return pending;
 	console.log(`[word-audio] MISS ${word} — calling TTS`);
-	return synthesizeWordAudio(openai, genreId, word, ttsModel);
+	const request = synthesizeWordAudio(openai, genreId, word, ttsModel).finally(
+		() => pendingWordAudio.delete(key),
+	);
+	pendingWordAudio.set(key, request);
+	return request;
 }
 
 export async function regenerateWordAudio(

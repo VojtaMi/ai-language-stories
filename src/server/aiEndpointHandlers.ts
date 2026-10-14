@@ -39,6 +39,15 @@ import {
 
 const learnerWordPattern = /^\p{L}+(?:[-’']\p{L}+)*$/u;
 
+/** A story section is a few short sentences; a word is one token. */
+const MAX_NARRATION_CHARS = 3000;
+const MAX_WORD_CHARS = 64;
+const MAX_STORY_CONTEXT_CHARS = 12_000;
+
+function isBoundedString(value: unknown, maxLength: number): value is string {
+	return typeof value === "string" && value.length <= maxLength;
+}
+
 export async function handleBackgroundImageRequest(
 	req: IncomingMessage,
 	res: ServerResponse,
@@ -98,8 +107,10 @@ export async function handleOpeningAudioRequest(
 		sendJson(res, 400, { error: "genreId is invalid." });
 		return;
 	}
-	if (!text || typeof text !== "string") {
-		sendJson(res, 400, { error: "text is required." });
+	if (!text || !isBoundedString(text, MAX_NARRATION_CHARS)) {
+		sendJson(res, 400, {
+			error: `text is required and at most ${MAX_NARRATION_CHARS} characters.`,
+		});
 		return;
 	}
 	if (
@@ -146,11 +157,13 @@ export async function handleRegenerateWordRequest(
 		sendJson(res, 400, { error: "genreId is invalid." });
 		return;
 	}
-	if (!word || typeof word !== "string") {
+	if (!word || !isBoundedString(word, MAX_WORD_CHARS)) {
 		sendJson(res, 400, { error: "word is required." });
 		return;
 	}
-	const context = typeof storyContext === "string" ? storyContext : undefined;
+	const context = isBoundedString(storyContext, MAX_STORY_CONTEXT_CHARS)
+		? storyContext
+		: undefined;
 	const fresh = await translateWords(
 		openai,
 		getLanguage(genreId),
@@ -170,7 +183,7 @@ export async function handleWordAudioRequest(
 		sendJson(res, 400, { error: "genreId is invalid." });
 		return;
 	}
-	if (!word || typeof word !== "string") {
+	if (!word || !isBoundedString(word, MAX_WORD_CHARS)) {
 		sendJson(res, 400, { error: "word is required." });
 		return;
 	}
@@ -198,7 +211,7 @@ export async function handleRegenerateWordAudioRequest(
 		sendJson(res, 400, { error: "genreId is invalid." });
 		return;
 	}
-	if (!word || typeof word !== "string") {
+	if (!word || !isBoundedString(word, MAX_WORD_CHARS)) {
 		sendJson(res, 400, { error: "word is required." });
 		return;
 	}
@@ -461,7 +474,7 @@ export async function handleLearnerWordLogRequest(
 		sendJson(res, 400, { error: "genreId is invalid." });
 		return;
 	}
-	if (!word || typeof word !== "string") {
+	if (!word || !isBoundedString(word, MAX_WORD_CHARS)) {
 		sendJson(res, 400, { error: "word is required." });
 		return;
 	}
