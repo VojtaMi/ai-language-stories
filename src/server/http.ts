@@ -1,11 +1,45 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
+/** An error whose status and message are safe to return to the client. */
+export class HttpError extends Error {
+	constructor(
+		readonly statusCode: number,
+		message: string,
+	) {
+		super(message);
+	}
+}
+
+/** Generous for a whole story plus its glosses; anything larger is not ours. */
+const MAX_BODY_BYTES = 512 * 1024;
+
 export async function readBody(req: IncomingMessage) {
 	const chunks: Buffer[] = [];
+	let size = 0;
 	for await (const chunk of req) {
-		chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+		const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+		size += buffer.length;
+		if (size > MAX_BODY_BYTES) {
+			throw new HttpError(413, "Request body is too large.");
+		}
+		chunks.push(buffer);
 	}
 	return Buffer.concat(chunks).toString("utf8");
+}
+
+/**
+ * Reads a JSON request body; an empty body reads as `{}`. Typed like
+ * `JSON.parse` because every handler validates the fields it destructures.
+ */
+// biome-ignore lint/suspicious/noExplicitAny: untrusted JSON, validated per field by each handler
+export async function readJsonBody(req: IncomingMessage): Promise<any> {
+	const text = await readBody(req);
+	if (!text.trim()) return {};
+	try {
+		return JSON.parse(text);
+	} catch {
+		throw new HttpError(400, "Request body is not valid JSON.");
+	}
 }
 
 export function sendJson(

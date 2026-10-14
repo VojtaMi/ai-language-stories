@@ -8,6 +8,7 @@ import {
 } from "../languages";
 import {
 	DEFAULT_TEXT_MODEL,
+	isTextModelId,
 	STORY_SEGMENT_MAX_TOKENS,
 	TEXT_REASONING_EFFORTS,
 	type TextReasoningEffort,
@@ -19,7 +20,7 @@ import { isStoryDifficulty } from "../storyFeedback";
 import { DEFAULT_TTS_MODEL, isTtsModelId } from "../ttsModel";
 import { completeAi, completeStructuredAi, translateWords } from "./aiService";
 import { withAiTraceMetadata } from "./aiTrace";
-import { readBody, sendJson } from "./http";
+import { readJsonBody, sendJson } from "./http";
 import { enqueueLearnerProfileMutation } from "./learnerProfileMutationQueue";
 import { readLearnerContext, writeLearnerContext } from "./learnerProfileStore";
 import { appendLearnerWordLogEntry } from "./learnerWordLogStore";
@@ -50,7 +51,7 @@ export async function handleBackgroundImageRequest(
 		sectionIndex,
 		visualContext,
 		anchorToFirstSection,
-	} = JSON.parse(await readBody(req));
+	} = await readJsonBody(req);
 	const genre = findLanguage(genreId);
 	if (!genre) {
 		sendJson(res, 404, { error: "Language not found." });
@@ -92,7 +93,7 @@ export async function handleOpeningAudioRequest(
 	openai: OpenAI,
 ) {
 	const { genreId, text, storyId, narrationVoice, sectionIndex, ttsModel } =
-		JSON.parse(await readBody(req));
+		await readJsonBody(req);
 	if (!isLanguageId(genreId)) {
 		sendJson(res, 400, { error: "genreId is invalid." });
 		return;
@@ -140,7 +141,7 @@ export async function handleRegenerateWordRequest(
 	res: ServerResponse,
 	openai: OpenAI,
 ) {
-	const { genreId, word, storyContext } = JSON.parse(await readBody(req));
+	const { genreId, word, storyContext } = await readJsonBody(req);
 	if (!isLanguageId(genreId)) {
 		sendJson(res, 400, { error: "genreId is invalid." });
 		return;
@@ -164,7 +165,7 @@ export async function handleWordAudioRequest(
 	res: ServerResponse,
 	openai: OpenAI,
 ) {
-	const { genreId, word, ttsModel } = JSON.parse(await readBody(req));
+	const { genreId, word, ttsModel } = await readJsonBody(req);
 	if (!isLanguageId(genreId)) {
 		sendJson(res, 400, { error: "genreId is invalid." });
 		return;
@@ -192,7 +193,7 @@ export async function handleRegenerateWordAudioRequest(
 	res: ServerResponse,
 	openai: OpenAI,
 ) {
-	const { genreId, word } = JSON.parse(await readBody(req));
+	const { genreId, word } = await readJsonBody(req);
 	if (!isLanguageId(genreId)) {
 		sendJson(res, 400, { error: "genreId is invalid." });
 		return;
@@ -210,6 +211,38 @@ export async function handleRegenerateWordAudioRequest(
 	sendJson(res, 200, { url });
 }
 
+/**
+ * Bounds for the browser-facing completion endpoint, which serves the tutor and
+ * the recap. They sit comfortably above both callers' real requests so that the
+ * public endpoint cannot be used for arbitrary long or expensive generations.
+ */
+const COMPLETE_MAX_TOKENS = 1200;
+const COMPLETE_MAX_MESSAGES = 60;
+const COMPLETE_MAX_CHARS = 60_000;
+
+function isCompletionMessageList(value: unknown): value is ChatMessage[] {
+	if (
+		!Array.isArray(value) ||
+		value.length === 0 ||
+		value.length > COMPLETE_MAX_MESSAGES
+	) {
+		return false;
+	}
+	let chars = 0;
+	for (const message of value) {
+		if (
+			!message ||
+			typeof message !== "object" ||
+			!["system", "user", "assistant"].includes(message.role) ||
+			typeof message.content !== "string"
+		) {
+			return false;
+		}
+		chars += message.content.length;
+	}
+	return chars <= COMPLETE_MAX_CHARS;
+}
+
 export async function handleCompleteRequest(
 	req: IncomingMessage,
 	res: ServerResponse,
@@ -222,9 +255,29 @@ export async function handleCompleteRequest(
 		model = DEFAULT_TEXT_MODEL,
 		responseFormat = "text",
 		reasoningEffort,
-	} = JSON.parse(await readBody(req));
+	} = await readJsonBody(req);
 	if (responseFormat !== "text" && responseFormat !== "json") {
 		sendJson(res, 400, { error: "responseFormat must be text or json." });
+		return;
+	}
+	if (!isTextModelId(model)) {
+		sendJson(res, 400, { error: "model is not an available text model." });
+		return;
+	}
+	if (
+		!Number.isInteger(maxTokens) ||
+		maxTokens < 1 ||
+		maxTokens > COMPLETE_MAX_TOKENS
+	) {
+		sendJson(res, 400, {
+			error: `maxTokens must be an integer from 1 to ${COMPLETE_MAX_TOKENS}.`,
+		});
+		return;
+	}
+	if (!isCompletionMessageList(messages)) {
+		sendJson(res, 400, {
+			error: `messages must be 1-${COMPLETE_MAX_MESSAGES} chat messages totalling at most ${COMPLETE_MAX_CHARS} characters.`,
+		});
 		return;
 	}
 	if (
@@ -255,7 +308,7 @@ export async function handleLearnerPreferencesUpdateRequest(
 	req: IncomingMessage,
 	res: ServerResponse,
 ) {
-	const body = JSON.parse(await readBody(req));
+	const body = await readJsonBody(req);
 	const fields = ["prefer", "avoid"] as const;
 	if (
 		!body ||
@@ -299,9 +352,7 @@ export async function handleFinalizeStoryEvidenceRequest(
 	openai: OpenAI,
 	anthropicKey: string,
 ) {
-	const body = JSON.parse(
-		await readBody(req),
-	) as Partial<StoryFinalizationInput>;
+	const body = (await readJsonBody(req)) as Partial<StoryFinalizationInput>;
 	if (!isLanguageId(body.genreId)) {
 		sendJson(res, 400, { error: "genreId is invalid." });
 		return;
@@ -405,7 +456,7 @@ export async function handleLearnerWordLogRequest(
 	req: IncomingMessage,
 	res: ServerResponse,
 ) {
-	const { genreId, word, storyId } = JSON.parse(await readBody(req));
+	const { genreId, word, storyId } = await readJsonBody(req);
 	if (!isLanguageId(genreId)) {
 		sendJson(res, 400, { error: "genreId is invalid." });
 		return;

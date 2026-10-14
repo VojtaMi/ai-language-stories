@@ -8,7 +8,11 @@ import { extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import OpenAI from "openai";
 import { isLanguageId, type LanguageId } from "../languages";
-import { TEXT_REASONING_EFFORTS, type TextReasoningEffort } from "../models";
+import {
+	isTextModelId,
+	TEXT_REASONING_EFFORTS,
+	type TextReasoningEffort,
+} from "../models";
 import { DEFAULT_TTS_MODEL, isTtsModelId } from "../ttsModel";
 import {
 	handleBackgroundImageRequest,
@@ -23,7 +27,12 @@ import {
 	handleWordAudioRequest,
 } from "./aiEndpointHandlers";
 import { createAiTraceContext, withAiTraceContext } from "./aiTrace";
-import { readBody, sendBufferWithRangeSupport, sendJson } from "./http";
+import {
+	HttpError,
+	readJsonBody,
+	sendBufferWithRangeSupport,
+	sendJson,
+} from "./http";
 import {
 	consumePreparedReadingOpening,
 	findLanguage,
@@ -222,11 +231,21 @@ async function handleRequest(
 		}
 
 		if (pathname === "/api/reading-openings/prepare" && req.method === "POST") {
-			const body = req.headers["content-length"]
-				? JSON.parse(await readBody(req))
-				: {};
+			const body = await readJsonBody(req);
 			if (!isLanguageId(body.genreId)) {
 				sendJson(res, 400, { error: "genreId is invalid." });
+				return;
+			}
+			if (body.model !== undefined && !isTextModelId(body.model)) {
+				sendJson(res, 400, { error: "model is not an available text model." });
+				return;
+			}
+			if (
+				body.basedOnStoryId != null &&
+				(typeof body.basedOnStoryId !== "string" ||
+					!storyIdPattern.test(body.basedOnStoryId))
+			) {
+				sendJson(res, 400, { error: "basedOnStoryId is invalid." });
 				return;
 			}
 			if (
@@ -463,6 +482,10 @@ async function handleRequest(
 
 		await serveStatic(res, pathname);
 	} catch (err) {
+		if (err instanceof HttpError) {
+			sendJson(res, err.statusCode, { error: err.message });
+			return;
+		}
 		const message = err instanceof Error ? err.message : String(err);
 		console.error(err);
 		sendJson(res, 500, { error: message });

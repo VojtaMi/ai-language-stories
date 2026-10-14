@@ -25,6 +25,10 @@ export const TEXT_MODELS = [
 ] as const;
 
 export type TextModelId = (typeof TEXT_MODELS)[number]["id"];
+
+export function isTextModelId(value: unknown): value is TextModelId {
+	return TEXT_MODELS.some((model) => model.id === value);
+}
 export const DEFAULT_TEXT_MODEL: TextModelId = "gpt-5.6-luna";
 
 export const TEXT_REASONING_EFFORTS = [
