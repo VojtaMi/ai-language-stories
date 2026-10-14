@@ -25,6 +25,8 @@ interface LanguageChatModalProps {
 	onClose: () => void;
 	/** Hands learner questions to the story's finish-evidence buffer. */
 	onCaptureQuestions: (questions: string[]) => void;
+	/** A question asked from elsewhere (a word popover), sent once on open. */
+	pendingQuestion?: { id: number; text: string } | null;
 }
 
 type ChatEntry = LanguageTutorChatMessage & { id: string };
@@ -39,6 +41,7 @@ export function LanguageChatModal({
 	backgroundIntro,
 	onClose,
 	onCaptureQuestions,
+	pendingQuestion,
 }: LanguageChatModalProps) {
 	const [messages, setMessages] = useState<ChatEntry[]>([]);
 	const [input, setInput] = useState("");
@@ -133,6 +136,18 @@ export function LanguageChatModal({
 			}
 		}
 	}
+
+	// `submitQuestion` is recreated every render; the ref lets the effect below
+	// send each pending question exactly once without re-running on every render.
+	const submitQuestionRef = useRef(submitQuestion);
+	submitQuestionRef.current = submitQuestion;
+	const sentPendingIdRef = useRef<number | null>(null);
+	useEffect(() => {
+		if (!isOpen || !pendingQuestion || isSending) return;
+		if (sentPendingIdRef.current === pendingQuestion.id) return;
+		sentPendingIdRef.current = pendingQuestion.id;
+		void submitQuestionRef.current(pendingQuestion.text);
+	}, [isOpen, pendingQuestion, isSending]);
 
 	function handleKeyDown(event: ReactKeyboardEvent<HTMLTextAreaElement>) {
 		if (event.key === "Enter" && !event.shiftKey) {

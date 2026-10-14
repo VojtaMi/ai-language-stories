@@ -733,6 +733,23 @@ body {
 	pointer-events: auto;
 }
 
+.story__word-popover__ask {
+	background: none;
+	border: 1px solid var(--story-border);
+	border-radius: 4px;
+	padding: 0 6px;
+	font: inherit;
+	font-size: 0.75rem;
+	line-height: 1.5;
+	cursor: pointer;
+	color: var(--accent);
+}
+
+.story__word-popover__ask:hover {
+	color: var(--text);
+	border-color: var(--accent);
+}
+
 .story__word-popover__regenerate {
 	background: none;
 	border: none;

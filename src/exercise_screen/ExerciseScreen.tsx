@@ -24,8 +24,20 @@ import type { StoryPhase, StorySegment } from "./types";
 
 const WORD_PATTERN = /(\p{L}+(?:[-’']\p{L}+)*|[^\p{L}]+)/gu;
 
+/** The sentence of `passage` in which `token` appears, for tutor context. */
+function sentenceContaining(passage: string, token: string): string {
+	const sentences = passage.match(/[^.!?]+[.!?]*["'”»]*/gu) ?? [passage];
+	return (
+		sentences.find((sentence) => sentence.includes(token))?.trim() ??
+		passage.trim()
+	);
+}
+
 interface WordPopover {
 	word: string;
+	/** The word exactly as written, and the passage it was tapped in. */
+	token: string;
+	passage: string;
 	translation: string;
 	isName: boolean;
 	x: number;
@@ -102,6 +114,10 @@ export default function ExerciseScreen({
 }: ExerciseScreenProps) {
 	const [galleryOpen, setGalleryOpen] = useState(false);
 	const [chatOpen, setChatOpen] = useState(false);
+	const [tutorQuestion, setTutorQuestion] = useState<{
+		id: number;
+		text: string;
+	} | null>(null);
 	const [popover, setPopover] = useState<WordPopover | null>(null);
 	const [regenerating, setRegenerating] = useState(false);
 	const [wordAudioUrls, setWordAudioUrls] = useState<Record<string, string>>(
@@ -259,11 +275,23 @@ export default function ExerciseScreen({
 		const rect = e.currentTarget.getBoundingClientRect();
 		setPopover({
 			word: token.toLowerCase(),
+			token,
+			passage: activeText ?? "",
 			translation,
 			isName,
 			x: rect.left + rect.width / 2,
 			y: rect.top,
 		});
+	};
+
+	const askTutorAboutWord = () => {
+		if (!popover) return;
+		setTutorQuestion((previous) => ({
+			id: (previous?.id ?? 0) + 1,
+			text: `What does "${popover.token}" mean in "${sentenceContaining(popover.passage, popover.token)}", and why does it have this form?`,
+		}));
+		setPopover(null);
+		setChatOpen(true);
 	};
 
 	const handleRegenerate = async () => {
@@ -416,6 +444,17 @@ export default function ExerciseScreen({
 					{!popover.isName && (
 						<button
 							type="button"
+							className="story__word-popover__ask"
+							title={`Ask ${language.label} Bot about this word`}
+							aria-label={`Ask ${language.label} Bot about ${popover.token}`}
+							onClick={askTutorAboutWord}
+						>
+							Ask
+						</button>
+					)}
+					{!popover.isName && (
+						<button
+							type="button"
 							className="story__word-popover__regenerate"
 							title="Regenerate translation"
 							disabled={regenerating}
@@ -445,6 +484,7 @@ export default function ExerciseScreen({
 				backgroundIntro={backgroundIntro}
 				onClose={() => setChatOpen(false)}
 				onCaptureQuestions={onCaptureBotQuestions}
+				pendingQuestion={tutorQuestion}
 			/>
 
 			{galleryOpen && canShowGallery && storyId && currentImageUrl && (
