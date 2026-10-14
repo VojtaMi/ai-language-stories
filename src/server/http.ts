@@ -5,6 +5,11 @@ export class HttpError extends Error {
 	constructor(
 		readonly statusCode: number,
 		message: string,
+		/** Extra JSON fields and response headers for the client. */
+		readonly details: {
+			body?: Record<string, unknown>;
+			headers?: Record<string, string | number>;
+		} = {},
 	) {
 		super(message);
 	}

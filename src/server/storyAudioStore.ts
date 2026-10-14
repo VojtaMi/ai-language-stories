@@ -14,6 +14,7 @@ import {
 	ttsModelInfo,
 	ttsModelSpeechOptions,
 } from "../ttsModel";
+import { HttpError } from "./http";
 import {
 	bundledAudioPath,
 	bundleIdPattern,
@@ -34,6 +35,8 @@ export async function createOpeningAudio(
 		sectionIndex?: number;
 		ttsModel?: TtsModelId;
 		instructions?: string;
+		/** Runs just before a paid TTS call; may throw to refuse it. */
+		beforeProviderCall?: () => void;
 	} = {},
 ): Promise<StoryOpeningAudio | null> {
 	const ttsModel = options.ttsModel ?? DEFAULT_TTS_MODEL;
@@ -47,6 +50,7 @@ export async function createOpeningAudio(
 		);
 		if (existingAudio) return existingAudio;
 
+		options.beforeProviderCall?.();
 		const speech = await tts({
 			openai,
 			text,
@@ -75,6 +79,9 @@ export async function createOpeningAudio(
 			openingAudioMimeType: speech.mimeType,
 		};
 	} catch (err) {
+		// A refusal (such as a rate limit) belongs to the caller, not to a
+		// provider failure that degrades to "no narration".
+		if (err instanceof HttpError) throw err;
 		console.warn("Could not generate opening audio.", err);
 		return null;
 	}

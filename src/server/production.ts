@@ -84,8 +84,6 @@ const providerBackedPostPaths = new Set([
 	"/api/ai/complete",
 	"/api/ai/translate-words/regenerate",
 	"/api/word-audio/regenerate",
-	"/api/word-audio",
-	"/api/ai/opening-audio",
 	"/api/ai/background-image",
 ]);
 
@@ -131,13 +129,39 @@ function applyProviderRateLimit(
 					code: "story_daily_limit",
 					retryAfterSeconds: result.retryAfterSeconds,
 				}
-			: {
-					error: "Too many AI requests. Please wait a minute and try again.",
-					code: "ai_burst_limit",
-					retryAfterSeconds: result.retryAfterSeconds,
-				},
+			: burstLimitBody(result.retryAfterSeconds),
 	);
 	return false;
+}
+
+function burstLimitBody(retryAfterSeconds: number) {
+	return {
+		error: "Too many AI requests. Please wait a minute and try again.",
+		code: "ai_burst_limit",
+		retryAfterSeconds,
+	};
+}
+
+/**
+ * Word audio and section narration usually answer from a cache, so they are
+ * not limited up front. Instead this charges one call to the client's burst
+ * budget immediately before a real provider call, and throws a 429 when the
+ * budget is spent: a learner tapping many already-pronounced words is never
+ * rate limited.
+ */
+function providerCallCharger(req: IncomingMessage) {
+	return () => {
+		if (!rateLimitEnabled) return;
+		const result = rateLimiter.consume(getClientIdentifier(req, trustProxy), [
+			providerBurstRule,
+		]);
+		if (result.allowed) return;
+		const { error, ...body } = burstLimitBody(result.retryAfterSeconds);
+		throw new HttpError(429, error, {
+			body,
+			headers: { "Retry-After": result.retryAfterSeconds },
+		});
+	};
 }
 
 // Keep the API server available without local credentials so the client can
@@ -457,7 +481,7 @@ async function handleRequest(
 		}
 
 		if (pathname === "/api/word-audio" && req.method === "POST") {
-			await handleWordAudioRequest(req, res, openai);
+			await handleWordAudioRequest(req, res, openai, providerCallCharger(req));
 			return;
 		}
 
@@ -490,7 +514,12 @@ async function handleRequest(
 		}
 
 		if (pathname === "/api/ai/opening-audio" && req.method === "POST") {
-			await handleOpeningAudioRequest(req, res, openai);
+			await handleOpeningAudioRequest(
+				req,
+				res,
+				openai,
+				providerCallCharger(req),
+			);
 			return;
 		}
 
@@ -502,7 +531,13 @@ async function handleRequest(
 		await serveStatic(res, pathname);
 	} catch (err) {
 		if (err instanceof HttpError) {
-			sendJson(res, err.statusCode, { error: err.message });
+			for (const [name, value] of Object.entries(err.details.headers ?? {})) {
+				res.setHeader(name, value);
+			}
+			sendJson(res, err.statusCode, {
+				error: err.message,
+				...err.details.body,
+			});
 			return;
 		}
 		const message = err instanceof Error ? err.message : String(err);

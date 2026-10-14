@@ -81,6 +81,7 @@ export async function getOrCreateWordAudio(
 	genreId: LanguageId,
 	word: string,
 	ttsModel: TtsModelId,
+	beforeProviderCall?: () => void,
 ): Promise<string> {
 	const cached = await findCachedWordAudio(
 		genreId,
@@ -94,6 +95,7 @@ export async function getOrCreateWordAudio(
 	const key = `${genreId}/${word}`;
 	const pending = pendingWordAudio.get(key);
 	if (pending) return pending;
+	beforeProviderCall?.();
 	console.log(`[word-audio] MISS ${word} — calling TTS`);
 	const request = synthesizeWordAudio(openai, genreId, word, ttsModel).finally(
 		() => pendingWordAudio.delete(key),

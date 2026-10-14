@@ -100,6 +100,7 @@ export async function handleOpeningAudioRequest(
 	req: IncomingMessage,
 	res: ServerResponse,
 	openai: OpenAI,
+	beforeProviderCall?: () => void,
 ) {
 	const { genreId, text, storyId, narrationVoice, sectionIndex, ttsModel } =
 		await readJsonBody(req);
@@ -132,6 +133,7 @@ export async function handleOpeningAudioRequest(
 				sectionIndex: validSectionIndex(sectionIndex),
 				ttsModel: isTtsModelId(ttsModel) ? ttsModel : DEFAULT_TTS_MODEL,
 				instructions: languageTtsInstructions(getLanguage(genreId)),
+				beforeProviderCall,
 			}),
 	);
 	if (!audio) {
@@ -177,6 +179,7 @@ export async function handleWordAudioRequest(
 	req: IncomingMessage,
 	res: ServerResponse,
 	openai: OpenAI,
+	beforeProviderCall?: () => void,
 ) {
 	const { genreId, word, ttsModel } = await readJsonBody(req);
 	if (!isLanguageId(genreId)) {
@@ -197,6 +200,7 @@ export async function handleWordAudioRequest(
 		genreId,
 		normalizedWord,
 		isTtsModelId(ttsModel) ? ttsModel : DEFAULT_TTS_MODEL,
+		beforeProviderCall,
 	);
 	sendJson(res, 200, { url });
 }
