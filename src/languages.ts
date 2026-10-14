@@ -26,13 +26,13 @@ const latinCurriculum = {
 	teachingTopics:
 		"vocabulary, noun declensions and cases, adjective agreement, verb conjugation, vowel quantity, pronunciation, and why sentences mean what they mean",
 	absoluteBeginnerGuidance:
-		"Use clear Latin with short present-indicative sentences, explicit subjects, common first- and second-declension nouns, and concrete everyday vocabulary. Start with nominative subjects, est, and simple intransitive verbs; introduce in with the ablative for location. Add accusative direct objects or motion expressions only when language.focus introduces them. Latin has no articles: do not invent them. Prefer straightforward word order without poetic rearrangement. Avoid subjunctives, passive voice, participles, ablative absolutes, indirect statement, and complex subordination until introduced by language.focus. These Latin variants differ only in pronunciation; do not assume religious themes. Use ordinary modern Latin spelling without macrons consistently in story prose; explain vowel quantity in English when useful.",
+		"Use clear Latin with short present-indicative sentences, explicit subjects, common first- and second-declension nouns, and concrete everyday vocabulary. Build most sentences from nominative subjects, est, simple verbs, and in with the ablative for location. Keep accusative direct objects and ad or in with the accusative for motion few and simple; use them only where the story needs them. Prefer singular subjects, first- and second-declension nouns, and ordinary active verbs rather than deponents. Latin has no articles: do not invent them. Prefer straightforward word order without poetic rearrangement. Avoid subjunctives, passive voice, participles, ablative absolutes, indirect statement, and complex subordination until introduced by language.focus. These Latin variants differ only in pronunciation; do not assume religious themes. Use ordinary modern Latin spelling without macrons consistently in story prose; explain vowel quantity in English when useful.",
 	grammarInvariants:
 		"Never simplify by dropping case endings. Keep noun and adjective gender, number, and case agreement and subject-verb person and number agreement correct. Use nominative subjects and accusative direct objects; distinguish in with the ablative for location from in with the accusative for motion into. Decline Latin personal names correctly when their syntactic role requires it. Do not add articles or force English word order.",
 	starterFocus:
-		"Short present-indicative Latin sentences with concrete beginner words; practise singular nominative subjects, est, simple intransitive verbs, and in with the ablative for location. Avoid direct objects and complex clauses.",
+		"Short present-indicative Latin sentences with concrete beginner words; practise singular nominative subjects, est, simple verbs, and in with the ablative for location. A few simple accusative objects or motion phrases are fine where the story needs them; avoid complex clauses.",
 	calibrationSnippets: [
-		"Iulia est puella. Iulia in horto est. Hortus parvus est. Marcus in horto ambulat. Iulia sedet. Marcus cantat.",
+		"Iulia est puella. Iulia in horto est. Hortus parvus est. Marcus in horto ambulat. Iulia rosam spectat. Marcus cantat.",
 	],
 	recapTitle: "Exercitatio brevis",
 };
@@ -46,13 +46,13 @@ export const languages = defineLanguages([
 		teachingTopics:
 			"vocabulary, roots, affixes, grammar, pronunciation, and why sentences mean what they mean",
 		absoluteBeginnerGuidance:
-			"Prefer the basic tense required by language.focus; otherwise prefer present-tense copular, positional, and intransitive constructions. Repeat explicit nouns when that is clearer than pronouns or complex references. Avoid plurals and direct objects unless language.focus introduces them; rephrase grammatically instead of dropping required endings.",
+			"Prefer the basic tense required by language.focus; otherwise prefer present tense. Build most sentences from being, location, motion, and simple actions; use a few simple direct objects and plurals only where the story naturally needs them. Repeat explicit nouns when that is clearer than pronouns or complex references. Avoid subordinate clauses, the -u mood, and compound tenses until language.focus introduces them; rephrase grammatically instead of dropping required endings.",
 		grammarInvariants:
 			"Never simplify by dropping required accusative, plural, or agreement endings. Equally, never add an accusative -n where it does not belong: not after prepositions (except to show direction of motion), not on predicate adjectives or nouns after esti, fariĝi, or ŝajni, and not on an object complement describing the object's resulting state (faras la feston gaja, not gajan).",
 		starterFocus:
-			"Simple present-tense sentences with concrete beginner words; avoid plurals and direct objects.",
+			"Simple present-tense sentences with concrete beginner words, mostly singular; a few simple direct objects with -n are fine where the story needs them.",
 		calibrationSnippets: [
-			"Petro estas viro. Petro sidas en ĝardeno. Simo estas hundo. Simo dormas apud Petro.",
+			"Petro estas viro. Petro sidas en ĝardeno. Simo estas hundo. Petro vidas la hundon. Simo dormas apud Petro.",
 		],
 		recapTitle: "Eta praktiko",
 	},

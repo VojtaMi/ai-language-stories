@@ -288,7 +288,7 @@ assert.match(absoluteBeginnerContext.languageGuidance, /very short, concrete/i);
 assert.match(absoluteBeginnerContext.languageGuidance, /one clause/i);
 assert.match(
 	absoluteBeginnerContext.languageGuidance,
-	/Avoid plurals and direct objects/i,
+	/a few simple direct objects/i,
 );
 assert.match(
 	absoluteBeginnerContext.languageGuidance,

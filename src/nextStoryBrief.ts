@@ -32,11 +32,11 @@ export const STARTER_NEXT_STORY_BRIEF: NextStoryBrief = {
 	narrativeScale: "minimal",
 	language: {
 		focus:
-			"Simple present-tense sentences with concrete beginner words; avoid plurals and direct objects.",
+			"Simple present-tense sentences with concrete beginner words, mostly singular; a few simple direct objects with -n are fine where the story needs them.",
 		progression: "establish",
 		complexity: "absolute beginner",
 		calibrationSnippets: [
-			"Petro estas viro. Petro sidas en ĝardeno. Simo estas hundo. Simo dormas apud Petro.",
+			"Petro estas viro. Petro sidas en ĝardeno. Simo estas hundo. Petro vidas la hundon. Simo dormas apud Petro.",
 		],
 	},
 };
