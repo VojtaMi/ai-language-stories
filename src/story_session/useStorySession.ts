@@ -1309,6 +1309,7 @@ export function useStorySession({
 
 	return {
 		activeSaveId,
+		activeTitle,
 		backToMenu,
 		backgroundImage,
 		backgroundIntro,

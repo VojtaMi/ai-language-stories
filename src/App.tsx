@@ -7,7 +7,12 @@ import {
 	selectLanguage,
 	syncLanguageDocument,
 } from "./languageSelection";
-import { getLanguage, isLanguageId, type LanguageId } from "./languages";
+import {
+	getLanguage,
+	isLanguageId,
+	type LanguageId,
+	languageSelectionLabel,
+} from "./languages";
 import {
 	readSelectedStoryGenerationPreset,
 	saveSelectedStoryGenerationPreset,
@@ -126,6 +131,7 @@ function ReadingApp({
 
 	const {
 		activeSaveId,
+		activeTitle,
 		backToMenu,
 		backgroundImage,
 		backgroundIntro,
@@ -243,8 +249,12 @@ function ReadingApp({
 
 			{inStory && (
 				<header className="story-header">
-					<h1>Story Reading</h1>
-					<p className="subtitle">{genre?.label ?? ""}</p>
+					<h1 lang={activeTitle ? language.locale : undefined}>
+						{activeTitle ?? "Story Reading"}
+					</h1>
+					<p className="subtitle">
+						{genre ? languageSelectionLabel(genre) : ""}
+					</p>
 				</header>
 			)}
 
