@@ -201,8 +201,22 @@ export default function ExerciseScreen({
 				setPopover(null);
 			}
 		};
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === "Escape") setPopover(null);
+		};
+		// The popover is pinned to viewport coordinates, so it would drift away
+		// from its word as soon as the page moves under it.
+		const close = () => setPopover(null);
 		document.addEventListener("mousedown", handler);
-		return () => document.removeEventListener("mousedown", handler);
+		document.addEventListener("keydown", onKey);
+		window.addEventListener("scroll", close, { passive: true });
+		window.addEventListener("resize", close);
+		return () => {
+			document.removeEventListener("mousedown", handler);
+			document.removeEventListener("keydown", onKey);
+			window.removeEventListener("scroll", close);
+			window.removeEventListener("resize", close);
+		};
 	}, [popover]);
 
 	const playWordAudio = (word: string, audioUrl?: string) => {
@@ -224,7 +238,7 @@ export default function ExerciseScreen({
 			})
 			.catch(() => {
 				const utt = new SpeechSynthesisUtterance(word);
-				utt.lang = "eo";
+				utt.lang = language.locale;
 				speechSynthesis.cancel();
 				speechSynthesis.speak(utt);
 			});
@@ -275,6 +289,7 @@ export default function ExerciseScreen({
 			<StoryLog
 				segments={canSelectParts ? segments.slice(0, selectedIndex) : segments}
 				onSelectSegment={canSelectParts ? selectPart : undefined}
+				lang={language.locale}
 			/>
 
 			{canSelectParts && activeText && (phase === "reading" || reviewing) && (
@@ -284,7 +299,7 @@ export default function ExerciseScreen({
 							<p className="story__reading-progress">{readingProgress}</p>
 						)}
 					</div>
-					<p className="story__reading-text">
+					<p className="story__reading-text" lang={language.locale}>
 						{[...(activeText ?? "").matchAll(WORD_PATTERN)].map((match) => {
 							const token = match[1];
 							const isWord = /\p{L}/u.test(token);
@@ -359,6 +374,7 @@ export default function ExerciseScreen({
 				<StoryLog
 					segments={laterSegments}
 					onSelectSegment={(index) => selectPart(selectedIndex + 1 + index)}
+					lang={language.locale}
 				/>
 			)}
 
@@ -392,6 +408,7 @@ export default function ExerciseScreen({
 			{popover && (
 				<div
 					ref={popoverRef}
+					role="status"
 					className="story__word-popover"
 					style={{ left: popover.x, top: popover.y }}
 				>

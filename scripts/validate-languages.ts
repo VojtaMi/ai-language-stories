@@ -67,6 +67,14 @@ for (const language of selectedLanguages) {
 		);
 	}
 
+	try {
+		if (Intl.getCanonicalLocales(language.locale)[0] !== language.locale) {
+			errors.push(`${prefix} locale must be a canonical BCP 47 tag.`);
+		}
+	} catch {
+		errors.push(`${prefix} locale is not a valid BCP 47 tag.`);
+	}
+
 	for (const field of [
 		"label",
 		"teachingTopics",

@@ -30,6 +30,7 @@ Add one complete entry to `src/languages.ts` with the current fields:
   id: "language-id",
   label: "Language",
   shortCode: "XX",
+  locale: "xx", // BCP 47 tag for the story language
   teachingTopics: "...",
   absoluteBeginnerGuidance: "...",
   grammarInvariants: "...",

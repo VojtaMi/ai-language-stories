@@ -5,6 +5,8 @@ interface LanguageDefinition<Id extends string = string> {
 	label: string;
 	selectionLabel?: string;
 	shortCode: string;
+	/** BCP 47 tag for the story language: document `lang`, speech fallback. */
+	locale: string;
 	teachingTopics: string;
 	absoluteBeginnerGuidance: string;
 	grammarInvariants: string;
@@ -40,6 +42,7 @@ export const languages = defineLanguages([
 		id: "esperanto",
 		label: "Esperanto",
 		shortCode: "EO",
+		locale: "eo",
 		teachingTopics:
 			"vocabulary, roots, affixes, grammar, pronunciation, and why sentences mean what they mean",
 		absoluteBeginnerGuidance:
@@ -57,6 +60,7 @@ export const languages = defineLanguages([
 		id: "german",
 		label: "German",
 		shortCode: "DE",
+		locale: "de",
 		teachingTopics:
 			"vocabulary, cases, gender and articles, verb person and tense, word order, separable verbs, and pronunciation",
 		absoluteBeginnerGuidance:
@@ -74,6 +78,7 @@ export const languages = defineLanguages([
 		id: "spanish",
 		label: "Spanish",
 		shortCode: "ES",
+		locale: "es",
 		teachingTopics:
 			"vocabulary, gender and agreement, verb conjugation and tense, ser and estar, pronunciation, and why sentences mean what they mean",
 		absoluteBeginnerGuidance:
@@ -91,6 +96,7 @@ export const languages = defineLanguages([
 		id: "dutch",
 		label: "Dutch",
 		shortCode: "NL",
+		locale: "nl",
 		teachingTopics:
 			"vocabulary, de and het articles, verb conjugation and tense, main-clause word order, separable verbs, pronunciation, and why sentences mean what they mean",
 		absoluteBeginnerGuidance:
@@ -108,6 +114,7 @@ export const languages = defineLanguages([
 		id: "finnish",
 		label: "Finnish",
 		shortCode: "FI",
+		locale: "fi",
 		teachingTopics:
 			"vocabulary, pronunciation, vowel harmony, consonant gradation, case endings, verb conjugation, and why sentences mean what they mean",
 		absoluteBeginnerGuidance:
@@ -127,6 +134,7 @@ export const languages = defineLanguages([
 		label: "Latin",
 		selectionLabel: "Latin - Classical",
 		shortCode: "LA",
+		locale: "la",
 		pronunciationGuidance:
 			"Use restored Classical Latin pronunciation consistently. Consonantal v is [w], as English w in wine; c is always [k], including before i and ae; ae is the diphthong [ae̯], approximately English eye. Vinum begins with [w]; Cicero has two hard [k] sounds; Caesar begins [kae̯]. Observe classical vowel quantities and Latin stress.",
 	},
@@ -136,6 +144,7 @@ export const languages = defineLanguages([
 		label: "Latin",
 		selectionLabel: "Latin - Ecclesiastical",
 		shortCode: "LAE",
+		locale: "la",
 		pronunciationGuidance:
 			"Use Italianate Roman Ecclesiastical Latin pronunciation consistently. Consonantal v is [v], as English v in vine; c before e, i, ae, oe or y is [tʃ], as English ch in church; ae is a single [e] vowel. Vinum begins with [v]; Cicero has two [tʃ] sounds; Caesar begins [tʃe]. Use Latin stress, not an English accent.",
 	},
