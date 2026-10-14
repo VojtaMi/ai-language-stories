@@ -51,6 +51,7 @@ interface ExerciseScreenProps {
 	phase: StoryPhase;
 	error: string | null;
 	backgroundIntro?: string;
+	languageFocus?: string;
 	storyId: string | null;
 	currentImageUrl: string | null;
 	openingAudioUrl: string | null;
@@ -88,6 +89,7 @@ export default function ExerciseScreen({
 	phase,
 	error,
 	backgroundIntro,
+	languageFocus,
 	storyId,
 	currentImageUrl,
 	openingAudioUrl,
@@ -486,6 +488,7 @@ export default function ExerciseScreen({
 				segments={segments}
 				currentTarget={currentTarget}
 				backgroundIntro={backgroundIntro}
+				languageFocus={languageFocus}
 				onClose={() => setChatOpen(false)}
 				onCaptureQuestions={onCaptureBotQuestions}
 				pendingQuestion={tutorQuestion}

@@ -1350,6 +1350,7 @@ export function useStorySession({
 		retryOpeningAudio,
 		narrationVoice,
 		nonTranslatableWords: readingStory?.properNames ?? [],
+		languageFocus: readingStory?.languageFocus,
 		regenerateWordTranslation: handleRegenerateWord,
 		resumeStory,
 		readingPartIndex,

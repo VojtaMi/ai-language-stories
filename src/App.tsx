@@ -140,6 +140,7 @@ function ReadingApp({
 		currentTarget,
 		error,
 		genre,
+		languageFocus,
 		openingAudio,
 		openingAudioLoading,
 		openingAudioError,
@@ -289,6 +290,7 @@ function ReadingApp({
 					phase={phase}
 					error={error}
 					backgroundIntro={backgroundIntro ?? undefined}
+					languageFocus={languageFocus}
 					storyId={activeSaveId}
 					currentImageUrl={displayedBackground?.backgroundImageUrl ?? null}
 					openingAudioUrl={openingAudio?.openingAudioUrl ?? null}

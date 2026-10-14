@@ -45,6 +45,8 @@ interface LanguageTutorRequest {
 	segments: Array<{ author: "ai" | "user"; text: string }>;
 	currentTarget: string | null;
 	backgroundIntro?: string;
+	/** The grammar or vocabulary objective the story was written to practise. */
+	languageFocus?: string;
 	conversation: LanguageTutorChatMessage[];
 	question: string;
 	model?: TextModelId;
@@ -338,6 +340,7 @@ export async function askLanguageTutor({
 	segments,
 	currentTarget,
 	backgroundIntro,
+	languageFocus,
 	conversation,
 	question,
 	model = DEFAULT_CHAT_MODEL,
@@ -367,6 +370,9 @@ export async function askLanguageTutor({
 				`Explain ${language.label} clearly and practically: ${language.teachingTopics}. ` +
 				(language.pronunciationGuidance
 					? `When explaining pronunciation: ${language.pronunciationGuidance} `
+					: "") +
+				(languageFocus
+					? `This story was written to practise: ${languageFocus} When it helps, connect explanations to this focus. `
 					: "") +
 				"Use the provided story context when it helps. Do not continue or rewrite the story unless the learner asks for that. " +
 				"If the learner asks for an exercise answer, prefer a helpful hint and explanation before giving the full answer. " +

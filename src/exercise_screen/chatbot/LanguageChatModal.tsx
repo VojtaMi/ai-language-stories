@@ -22,6 +22,7 @@ interface LanguageChatModalProps {
 	segments: StorySegment[];
 	currentTarget: string | null;
 	backgroundIntro?: string;
+	languageFocus?: string;
 	onClose: () => void;
 	/** Hands learner questions to the story's finish-evidence buffer. */
 	onCaptureQuestions: (questions: string[]) => void;
@@ -39,6 +40,7 @@ export function LanguageChatModal({
 	segments,
 	currentTarget,
 	backgroundIntro,
+	languageFocus,
 	onClose,
 	onCaptureQuestions,
 	pendingQuestion,
@@ -120,6 +122,7 @@ export function LanguageChatModal({
 				segments,
 				currentTarget,
 				backgroundIntro,
+				languageFocus,
 				conversation: messages,
 				question: trimmed,
 				model,
