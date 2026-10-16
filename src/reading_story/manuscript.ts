@@ -13,17 +13,40 @@ import {
 import type { NextStoryBrief } from "../nextStoryBrief";
 import type { ChatMessage, Complete } from "../story";
 import { requiredString } from "../structuredGeneration";
+import {
+	CHARACTER_VOICE_TYPES,
+	type DialogueLine,
+	parseDialogueAttribution,
+	type StoryCharacter,
+} from "./dialogue";
 
 export interface ReadingStoryManuscript {
 	title: string;
 	/** Immutable finished target-language prose. Later stages may divide but never rewrite it. */
 	text: string;
+	/** Everyone who speaks a quotation in `text`. */
+	characters: StoryCharacter[];
+	/** One entry per quotation in `text`, in order. */
+	dialogue: DialogueLine[];
 }
 
 function manuscriptShape(genre: Language) {
+	const { open, close } = genre.dialogueQuotes;
 	return {
 		title: `short ${genre.label} title, 2-6 words`,
 		text: `the complete uninterrupted ${genre.label} story`,
+		characters: [
+			{
+				name: "a speaking character, named exactly as the text names them",
+				voiceType: CHARACTER_VOICE_TYPES.join(" | "),
+			},
+		],
+		dialogue: [
+			{
+				speaker: "the characters name who says this quotation",
+				delivery: `short English acting note for the ${open}…${close} quotation`,
+			},
+		],
 	};
 }
 
@@ -32,8 +55,8 @@ function lengthGuidance(
 	scale: NextStoryBrief["narrativeScale"],
 ) {
 	return scale === "minimal"
-		? `Write roughly 90-150 ${genre.label} words in 8-14 short sentences. Let a genuinely tiny plot finish sooner rather than padding it.`
-		: `Write roughly 160-260 ${genre.label} words in 12-22 short sentences. Let the reviewed plot determine the exact length.`;
+		? `Write roughly 90-150 ${genre.label} words in 8-14 short sentences. Let a genuinely tiny plot finish sooner rather than padding it. Use at most 4 quotations.`
+		: `Write roughly 160-260 ${genre.label} words in 12-22 short sentences. Let the reviewed plot determine the exact length. Use at most 6 quotations.`;
 }
 
 const LANGUAGE_GUIDANCE: Record<
@@ -51,6 +74,7 @@ const LANGUAGE_GUIDANCE: Record<
 
 function manuscriptPrompt(genre: Language) {
 	const language = getLanguage(genre.id);
+	const { open, close } = language.dialogueQuotes;
 	return `Author the finished manuscript for one beginner ${language.label} reading story: a concise ${language.label} title and the final uninterrupted prose.
 
 Language:
@@ -71,15 +95,26 @@ Story:
 - Every sentence must advance the action, clarify the situation, or pay off an earlier setup.
 - Apply lengthGuidance. Do not create sections, numbered moments, image instructions, visual metadata, a summary, or commentary.
 
+Dialogue:
+- Voice as direct speech the moments where storyPlot has characters speak to each other. You may also give a character already in the plot a short greeting, question, answer, or thanks where people would naturally speak. Do not add dialogue to a character who is alone, and respect the quotation limit in lengthGuidance.
+- Spoken lines must sound like what a person would really say. Keep them short and no harder than the narration. Common fixed phrases such as greetings, thanks, please, yes, and no are always allowed. If the natural line would need grammar the language focus excludes, choose another natural line or tell that moment in narration; never write an unnatural line to fit the focus.
+- A character may use only names and facts they could know at that moment in the scene.
+- Enclose every spoken line in ${open} and ${close}. Use these marks for nothing else: write signs, labels, written words, and thoughts without them.
+- Make clear in the narration who speaks each quotation, by name or role, before or right after it.
+- When the narration says how a line is spoken, the line's punctuation and its delivery must agree: a line spoken quietly or sadly does not end with an exclamation mark.
+- List each speaking character once in characters, named exactly as the text names them. Choose the closest voiceType by apparent gender and age, also for an animal or creature. The narrator is not a character.
+- Give dialogue exactly one entry per ${open}…${close} quotation, in text order. speaker is a characters name; delivery is a short English acting note, such as "soft, hopeful", that fits the scene and the narration.
+
 Return only valid JSON matching exactly:
 ${JSON.stringify(manuscriptShape(language))}`;
 }
 
 function manuscriptRepairPrompt(genre: Language) {
+	const { open, close } = genre.dialogueQuotes;
 	return `Repair the supplied output into valid JSON matching exactly:
 ${JSON.stringify(manuscriptShape(genre))}
 
-Preserve the complete ${genre.label} prose. Fix only invalid JSON, a missing concise title, or a missing text wrapper. Do not divide, summarize, continue, or rewrite valid prose. Return JSON only.`;
+Preserve the complete ${genre.label} prose. Fix only invalid JSON, a missing concise title, a missing text wrapper, or the dialogue attribution: dialogue needs exactly one entry per ${open}…${close} quotation in text order, each speaker listed in characters. If ${open} and ${close} enclose something nobody says aloud, remove those two marks; if a mark is missing or unpaired, add or remove that one mark. Do not divide, summarize, continue, or otherwise rewrite valid prose. Return JSON only.`;
 }
 
 export function readingManuscriptMessages(
@@ -122,7 +157,10 @@ export function readingManuscriptMessages(
 	];
 }
 
-export function parseReadingManuscript(raw: string): ReadingStoryManuscript {
+export function parseReadingManuscript(
+	raw: string,
+	genre: Language,
+): ReadingStoryManuscript {
 	let value: unknown;
 	try {
 		value = parseJsonResponse(raw);
@@ -133,13 +171,24 @@ export function parseReadingManuscript(raw: string): ReadingStoryManuscript {
 		throw new Error("The AI returned an invalid reading story manuscript.");
 	}
 	const manuscript = value as Record<string, unknown>;
+	const text = requiredString(
+		manuscript.text,
+		"text",
+		"Reading story manuscript",
+	);
 	return {
 		title: requiredString(
 			manuscript.title,
 			"title",
 			"Reading story manuscript",
 		),
-		text: requiredString(manuscript.text, "text", "Reading story manuscript"),
+		text,
+		...parseDialogueAttribution(
+			text,
+			genre.dialogueQuotes,
+			manuscript.characters,
+			manuscript.dialogue,
+		),
 	};
 }
 
@@ -157,7 +206,7 @@ export async function generateReadingManuscript(
 		{ reasoningEffort },
 	);
 	try {
-		return parseReadingManuscript(raw);
+		return parseReadingManuscript(raw, genre);
 	} catch (error) {
 		const validationFailure =
 			error instanceof Error ? error.message : "Unknown validation failure.";
@@ -172,6 +221,6 @@ export async function generateReadingManuscript(
 			READING_STORY_MAX_TOKENS,
 			SYSTEM_AI_PRESET,
 		);
-		return parseReadingManuscript(repaired);
+		return parseReadingManuscript(repaired, genre);
 	}
 }

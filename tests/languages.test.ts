@@ -116,6 +116,10 @@ assert.deepEqual(
 );
 assert.equal(ecclesiastical.grammarInvariants, latin.grammarInvariants);
 assert.match(languageTtsInstructions(latin), /restored Classical Latin/);
+assert.match(
+	languageTtsInstructions(getLanguage("esperanto")),
+	/^The transcript is Esperanto\..*never translate.*kaj is one syllable/,
+);
 assert.match(languageTtsInstructions(latin), /Consonantal v is \[w\]/);
 assert.match(languageTtsInstructions(latin), /c is always \[k\]/);
 assert.match(

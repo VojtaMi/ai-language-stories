@@ -632,7 +632,13 @@ async function generateCandidate(
 			rawOutput,
 		};
 		try {
-			return { ...base, manuscript: parseReadingManuscript(rawOutput) };
+			return {
+				...base,
+				manuscript: parseReadingManuscript(
+					rawOutput,
+					getLanguage(evaluationCase.languageId),
+				),
+			};
 		} catch (error) {
 			return { ...base, validationError: errorMessage(error) };
 		}

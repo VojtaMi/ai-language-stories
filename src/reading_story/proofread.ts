@@ -3,6 +3,7 @@ import { parseJsonResponse } from "../learnerState";
 import type { TextModelId } from "../models";
 import type { ChatMessage, Complete } from "../story";
 import { isObject } from "../structuredGeneration";
+import type { DialogueQuotes } from "./dialogue";
 import type { ReadingStoryManuscript } from "./manuscript";
 
 const PROOFREAD_MAX_TOKENS = 4000;
@@ -63,13 +64,19 @@ export function parseManuscriptCorrections(
 /**
  * Applies only corrections that are unambiguous, local substitutions: the
  * original occurs exactly once, and the replacement is a comparable sentence
- * rather than a rewrite. Anything else is dropped, so a confused proofreader
- * can at worst leave an error in place, never damage the prose around it.
+ * rather than a rewrite, with the same dialogue marks, since dialogue
+ * attribution is positional. Anything else is dropped, so a confused
+ * proofreader can at worst leave an error in place, never damage the prose
+ * around it.
  */
 export function applyManuscriptCorrections(
 	text: string,
 	corrections: ManuscriptCorrection[],
+	quotes: DialogueQuotes,
 ): { text: string; applied: ManuscriptCorrection[] } {
+	const quoteMarks = (value: string) =>
+		[...value].filter((mark) => mark === quotes.open || mark === quotes.close)
+			.length;
 	let next = text;
 	const applied: ManuscriptCorrection[] = [];
 	for (const { original, corrected } of corrections) {
@@ -79,6 +86,7 @@ export function applyManuscriptCorrections(
 		if (to.length > from.length * 1.5 + 10 || to.length < from.length * 0.5) {
 			continue;
 		}
+		if (quoteMarks(from) !== quoteMarks(to)) continue;
 		const first = next.indexOf(from);
 		if (first === -1 || next.indexOf(from, first + 1) !== -1) continue;
 		next = next.slice(0, first) + to + next.slice(first + from.length);
@@ -110,6 +118,10 @@ export async function proofreadReadingManuscript(
 		console.warn("Could not proofread the reading story manuscript.", error);
 		return manuscript;
 	}
-	const { text } = applyManuscriptCorrections(manuscript.text, corrections);
+	const { text } = applyManuscriptCorrections(
+		manuscript.text,
+		corrections,
+		genre.dialogueQuotes,
+	);
 	return { ...manuscript, text };
 }

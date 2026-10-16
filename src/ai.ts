@@ -12,6 +12,7 @@ import {
 import type { NarrationVoiceId } from "./narrationVoice";
 import type { NextStoryBrief } from "./nextStoryBrief";
 import type { ProviderAvailability } from "./providerAvailability";
+import type { SectionDialogue } from "./reading_story/dialogue";
 import type { ChatMessage, ReadingStory, ReadingStoryPart } from "./story";
 import type { StoryOpeningAudio } from "./storyAudio";
 import type { StoryBackgroundImage } from "./storyBackground";
@@ -272,7 +273,11 @@ export async function generateOpeningAudio(
 	text: string,
 	storyId: string,
 	narrationVoice: NarrationVoiceId,
-	options: { sectionIndex?: number; ttsModel?: TtsModelId } = {},
+	options: {
+		sectionIndex?: number;
+		ttsModel?: TtsModelId;
+		dialogue?: SectionDialogue;
+	} = {},
 ): Promise<StoryOpeningAudio> {
 	return postJson<StoryOpeningAudio>(
 		"/api/ai/opening-audio",

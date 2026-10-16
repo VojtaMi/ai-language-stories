@@ -12,6 +12,13 @@ import {
 	STARTER_NEXT_STORY_BRIEF,
 } from "../src/nextStoryBrief.ts";
 import {
+	dialogueSegments,
+	findQuotations,
+	parseDialogueAttribution,
+	readingSectionDialogue,
+	type StoryCharacter,
+} from "../src/reading_story/dialogue.ts";
+import {
 	generateReadingManuscript,
 	parseReadingManuscript,
 	readingManuscriptMessages,
@@ -46,6 +53,11 @@ import {
 } from "../src/server/aiService.ts";
 import { AiTraceError } from "../src/server/aiTrace.ts";
 import {
+	assignCharacterVoices,
+	dialogueTurns,
+	groupSpeechTurns,
+} from "../src/server/tts/geminiDialogueTts.ts";
+import {
 	type ChatMessage,
 	type Complete,
 	generateReadingStory,
@@ -67,6 +79,7 @@ const genre: Language = {
 	label: "Esperanto",
 	systemPrompt: "Write Esperanto stories.",
 	seeds: [],
+	dialogueQuotes: { open: "«", close: "»" },
 } as unknown as Language;
 
 const preferences = {
@@ -102,6 +115,8 @@ const manuscriptText = [
 const manuscript = {
 	title: "La Ĝusta Trajno",
 	text: manuscriptText,
+	characters: [],
+	dialogue: [],
 };
 
 function finalStoryJson(partCount = 5, imageCount = Math.ceil(partCount / 2)) {
@@ -161,6 +176,15 @@ assert.equal(openPlotContext.storySubject, undefined);
 assert.deepEqual(openPlotContext.preferences, preferences);
 assert.equal(openPlotContext.recentStories[0].motif, "a lost red ball");
 assert.match(readingStoryPlotMessages(undefined)[0].content, /choose.*freely/i);
+assert.match(
+	plotMessages[0].content,
+	/two or more characters meet.*speak to each other/is,
+);
+assert.match(plotMessages[0].content, /do not write out the spoken lines/);
+assert.match(
+	readingStoryPlotReviewMessages("A draft.")[0].content,
+	/keep moments where characters speak/i,
+);
 assert.equal(
 	JSON.parse(
 		readingStoryPlotMessages(
@@ -295,10 +319,10 @@ assert.match(
 	/Preserve every plot event/i,
 );
 assert.deepEqual(
-	parseReadingManuscript(JSON.stringify(manuscript)),
+	parseReadingManuscript(JSON.stringify(manuscript), genre),
 	manuscript,
 );
-assert.throws(() => parseReadingManuscript('{"title":"Only a title"}'));
+assert.throws(() => parseReadingManuscript('{"title":"Only a title"}', genre));
 
 let manuscriptAttempts = 0;
 const repairedManuscript = await generateReadingManuscript(
@@ -384,6 +408,251 @@ assert.equal(retriedParts.map((part) => part.text).join(" "), manuscript.text);
 console.log(
 	"checked reading story: Luna selects boundaries but cannot rewrite",
 );
+
+// --- Dialogue attribution ----------------------------------------------------
+
+const guillemets = { open: "«", close: "»" };
+const dialogueText =
+	"Lina vidas Tomas. Ŝi demandas: «Ĉu vi venas? Mi atendas.» Tomas respondas: «Jes!» Ili iras. Lina diras: «Bone.»";
+assert.equal(findQuotations(dialogueText, guillemets).length, 3);
+assert.throws(() => findQuotations("«Saluton", guillemets), /never closed/);
+assert.throws(() => findQuotations("Saluton»", guillemets), /no opening/);
+assert.throws(() => findQuotations("«a «b» c»", guillemets), /inside/);
+// Finnish opens and closes with the same mark.
+assert.equal(
+	findQuotations("Aino sanoo: ”Hei.” Matti sanoo: ”Moi.”", {
+		open: "”",
+		close: "”",
+	}).length,
+	2,
+);
+
+assert.deepEqual(
+	readingStorySentences(dialogueText, guillemets).map((sentence) =>
+		sentence.trim(),
+	),
+	[
+		"Lina vidas Tomas.",
+		"Ŝi demandas: «Ĉu vi venas? Mi atendas.»",
+		"Tomas respondas: «Jes!»",
+		"Ili iras.",
+		"Lina diras: «Bone.»",
+	],
+	"A sentence never ends inside a quotation.",
+);
+assert.deepEqual(
+	readingStorySentences(
+		"Lina demandas: «Ĉu vi venas?» kaj ridetas. Tomas venas.",
+		guillemets,
+	).map((sentence) => sentence.trim()),
+	["Lina demandas: «Ĉu vi venas?» kaj ridetas.", "Tomas venas."],
+	"Lowercase narration after a quotation continues the sentence.",
+);
+
+const characters = [
+	{ name: "Lina", voiceType: "woman" },
+	{ name: "Tomas", voiceType: "boy" },
+	{ name: "Bruno", voiceType: "older man" },
+];
+const dialogue = [
+	{ speaker: "Lina", delivery: "curious" },
+	{ speaker: "Tomas", delivery: "eager" },
+	{ speaker: "Lina", delivery: "soft, content" },
+];
+assert.deepEqual(
+	parseDialogueAttribution(dialogueText, guillemets, characters, dialogue),
+	{ characters: characters.slice(0, 2), dialogue },
+	"Characters who never speak are dropped.",
+);
+assert.throws(
+	() =>
+		parseDialogueAttribution(
+			dialogueText,
+			guillemets,
+			characters,
+			dialogue.slice(0, 2),
+		),
+	/3 «…» quotations but dialogue has 2/,
+);
+assert.throws(
+	() =>
+		parseDialogueAttribution(dialogueText, guillemets, characters, [
+			...dialogue.slice(0, 2),
+			{ speaker: "Narrator", delivery: "calm" },
+		]),
+	/speaker listed in characters/,
+);
+assert.throws(
+	() =>
+		parseDialogueAttribution(
+			dialogueText,
+			guillemets,
+			[{ name: "Lina", voiceType: "wizard" }],
+			[],
+		),
+	/voiceType/,
+);
+
+assert.deepEqual(
+	dialogueSegments("Tomas respondas: «Jes!» Ili iras.", guillemets, 1),
+	[
+		{ text: "Tomas respondas: " },
+		{ text: "«Jes!»", dialogueIndex: 1 },
+		{ text: " Ili iras." },
+	],
+);
+
+const dialogueMessages = readingManuscriptMessages(
+	genre,
+	"Lina asks Tomas to come along.",
+	nextStoryBrief,
+);
+assert.match(
+	dialogueMessages[0].content,
+	/Enclose every spoken line in « and »/,
+);
+assert.match(
+	dialogueMessages[0].content,
+	/does not end with an exclamation mark/,
+);
+assert.match(dialogueMessages[0].content, /never write an unnatural line/);
+assert.match(dialogueMessages[0].content, /names and facts they could know/);
+assert.match(
+	JSON.parse(dialogueMessages[1].content.split("\n\n").at(-1) ?? "")
+		.lengthGuidance,
+	/at most 6 quotations/,
+);
+
+let dialogueRepairPrompt = "";
+const repairedDialogue = await generateReadingManuscript(
+	async (messages) => {
+		if (!dialogueRepairPrompt && messages[0].content.startsWith("Author")) {
+			return JSON.stringify({
+				title: "Lina kaj Tomas",
+				text: dialogueText,
+				characters,
+				dialogue: dialogue.slice(0, 2),
+			});
+		}
+		dialogueRepairPrompt = messages[0].content;
+		assert.match(messages[1].content, /3 «…» quotations/);
+		return JSON.stringify({
+			title: "Lina kaj Tomas",
+			text: dialogueText,
+			characters,
+			dialogue,
+		});
+	},
+	genre,
+	"Lina asks Tomas to come along.",
+	nextStoryBrief,
+);
+assert.match(dialogueRepairPrompt, /exactly one entry per «…» quotation/);
+assert.equal(repairedDialogue.dialogue.length, 3);
+console.log("checked reading story: dialogue attribution follows quotations");
+
+// --- Voicing a section's dialogue ---------------------------------------------
+
+const voicedParts = [
+	{ text: "Lina vidas Tomas. Ŝi demandas: «Ĉu vi venas? Mi atendas.»" },
+	{ text: "Ili iras." },
+	{ text: "Tomas respondas: «Jes!» Lina diras: «Bone.»" },
+];
+const castCharacters = characters.slice(0, 2) as StoryCharacter[];
+assert.equal(
+	readingSectionDialogue(voicedParts, castCharacters, dialogue, 2, guillemets),
+	undefined,
+	"A section without quotations is narrated in one voice.",
+);
+const thirdSection = readingSectionDialogue(
+	voicedParts,
+	castCharacters,
+	dialogue,
+	3,
+	guillemets,
+);
+assert.deepEqual(thirdSection?.lines, dialogue.slice(1));
+assert.deepEqual(
+	thirdSection?.characters.map((character) => character.name),
+	["Lina", "Tomas"],
+);
+assert.equal(
+	readingSectionDialogue(voicedParts, undefined, undefined, 1, guillemets),
+	undefined,
+);
+
+const twoMen = assignCharacterVoices(
+	[
+		{ name: "Toma", voiceType: "man" },
+		{ name: "Niko", voiceType: "man" },
+		{ name: "Mara", voiceType: "woman" },
+	],
+	"Charon",
+);
+assert.notEqual(twoMen.get("Toma"), "Charon", "Never the narrator's voice.");
+assert.notEqual(twoMen.get("Toma"), twoMen.get("Niko"));
+assert.equal(new Set(twoMen.values()).size, 3);
+
+const turns = dialogueTurns(
+	voicedParts[2].text,
+	guillemets,
+	thirdSection ?? { characters: [], lines: [] },
+	"Iapetus",
+	"Speak Esperanto.",
+);
+assert.deepEqual(
+	turns.map((turn) => [turn.speaker, turn.text]),
+	[
+		["Narrator", "Tomas respondas:"],
+		["Character2", "Jes!"],
+		["Narrator", "Lina diras:"],
+		["Character1", "Bone."],
+	],
+);
+assert.match(
+	turns[1].style,
+	/^Speak Esperanto\. Speak as a young boy\. Delivery: eager\.$/,
+);
+assert.equal(turns[0].style, "Speak Esperanto.");
+assert.throws(() =>
+	dialogueTurns(
+		"«Jes!»",
+		guillemets,
+		{ characters: [], lines: [] },
+		"Iapetus",
+		"",
+	),
+);
+
+assert.deepEqual(
+	dialogueTurns(
+		"«Bone», diras Lina.",
+		guillemets,
+		{
+			characters: castCharacters,
+			lines: [{ speaker: "Lina", delivery: "soft" }],
+		},
+		"Iapetus",
+		"",
+	).map((item) => item.text),
+	["Bone", "diras Lina."],
+	"Punctuation after a quotation never starts the narrator's turn.",
+);
+
+const turn = (voice: string) => ({
+	speaker: voice,
+	voice,
+	text: voice,
+	style: "",
+});
+assert.deepEqual(
+	groupSpeechTurns(["N", "B", "N", "A", "N", "B", "N"].map(turn)).map((group) =>
+		group.map((item) => item.voice).join(""),
+	),
+	["NBN", "AN", "BN"],
+	"Requests hold at most two voices and cut only where a third joins.",
+);
+console.log("checked reading story: dialogue voices are grouped per request");
 
 // --- Shared visual core and per-pair instructions ----------------------------
 
@@ -545,7 +814,7 @@ console.log("checked reading story: staged pipeline has six explicit calls");
 // --- Proofreading --------------------------------------------------------------
 
 const proofreadSource =
-	"Marco prope est. Livia dicit: Marco, veni. Una sacculus est. Una sacculus est.";
+	"Marco prope est. Livia dicit: «Marco, veni.» Una sacculus est. Una sacculus est.";
 const proofread = applyManuscriptCorrections(
 	proofreadSource,
 	parseManuscriptCorrections(
@@ -556,9 +825,14 @@ const proofread = applyManuscriptCorrections(
 				{ original: "Una sacculus est.", corrected: "Unus sacculus est." },
 				// A rewrite rather than a local correction.
 				{
-					original: "Livia dicit: Marco, veni.",
+					original: "Livia dicit: «Marco, veni.»",
 					corrected:
-						"Livia, quae in statione diu exspectat, Marcum magna voce vocat et dicit: Marce, veni celeriter ad me.",
+						"Livia, quae in statione diu exspectat, Marcum magna voce vocat et dicit: «Marce, veni celeriter ad me.»",
+				},
+				// Adds dialogue marks, which would shift positional attribution.
+				{
+					original: "Livia dicit: «Marco, veni.»",
+					corrected: "Livia dicit: «Marce», «veni».",
 				},
 				// Not in the text at all.
 				{ original: "Tramen venit.", corrected: "Tramen venit!" },
@@ -566,10 +840,11 @@ const proofread = applyManuscriptCorrections(
 			],
 		}),
 	),
+	{ open: "«", close: "»" },
 );
 assert.equal(
 	proofread.text,
-	"Marcus prope est. Livia dicit: Marco, veni. Una sacculus est. Una sacculus est.",
+	"Marcus prope est. Livia dicit: «Marco, veni.» Una sacculus est. Una sacculus est.",
 );
 assert.equal(proofread.applied.length, 1);
 

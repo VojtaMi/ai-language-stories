@@ -3,6 +3,7 @@ import { parseJsonResponse } from "../learnerState";
 import { DEFAULT_TEXT_MODEL } from "../models";
 import type { ChatMessage, Complete, ReadingStoryPart } from "../story";
 import { countWords } from "../structuredGeneration";
+import { type DialogueQuotes, findQuotations } from "./dialogue";
 import type { ReadingStoryManuscript } from "./manuscript";
 
 const SPLIT_MAX_TOKENS = 600;
@@ -24,13 +25,35 @@ type SplitRange = {
 	max: number;
 };
 
-export function readingStorySentences(text: string): string[] {
+/**
+ * Splits prose into sentences without ever ending one inside a dialogue
+ * quotation, so section boundaries cannot separate a line from its speaker
+ * mark. A quotation ending in .!? closes a sentence unless the narration
+ * continues in lowercase after it.
+ */
+export function readingStorySentences(
+	text: string,
+	quotes?: DialogueQuotes,
+): string[] {
+	const quotations = quotes ? findQuotations(text, quotes) : [];
 	const sentences: string[] = [];
 	let start = 0;
 	for (let index = 0; index < text.length; index += 1) {
-		if (!".!?".includes(text[index])) continue;
-		let end = index + 1;
-		while (end < text.length && /[”"'’»›]/u.test(text[end])) end += 1;
+		const quotation = quotations.find(
+			(candidate) => candidate.start <= index && index < candidate.end,
+		);
+		let end: number;
+		if (quotation) {
+			if (index !== quotation.end - 1 || !".!?".includes(text[index - 1])) {
+				continue;
+			}
+			end = index + 1;
+			if (/^\s*\p{Ll}/u.test(text.slice(end))) continue;
+		} else {
+			if (!".!?".includes(text[index])) continue;
+			end = index + 1;
+			while (end < text.length && /[”"'’»›]/u.test(text[end])) end += 1;
+		}
 		if (end < text.length && !/\s/u.test(text[end])) continue;
 		while (end < text.length && /\s/u.test(text[end])) end += 1;
 		sentences.push(text.slice(start, end));
@@ -58,7 +81,10 @@ export function readingStorySplitMessages(
 	manuscript: ReadingStoryManuscript,
 	genre: Language = DEFAULT_LANGUAGE,
 ): ChatMessage[] {
-	const sentences = readingStorySentences(manuscript.text);
+	const sentences = readingStorySentences(
+		manuscript.text,
+		genre.dialogueQuotes,
+	);
 	const range = allowedSplitRange(sentences.length);
 	return [
 		{ role: "system", content: splitPrompt(genre) },
@@ -81,7 +107,10 @@ export async function splitReadingManuscript(
 	manuscript: ReadingStoryManuscript,
 	genre: Language = DEFAULT_LANGUAGE,
 ): Promise<ReadingStoryPart[]> {
-	const sentences = readingStorySentences(manuscript.text);
+	const sentences = readingStorySentences(
+		manuscript.text,
+		genre.dialogueQuotes,
+	);
 	if (sentences.length < 2) {
 		throw new Error(
 			"The finished reading story has too few sentences to split.",

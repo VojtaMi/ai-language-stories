@@ -3,7 +3,14 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import OpenAI from "openai";
-import { languages } from "../src/languages.ts";
+import {
+	getLanguage,
+	isLanguageId,
+	type Language,
+	type LanguageId,
+	languages,
+	starterBriefForLanguage,
+} from "../src/languages.ts";
 import type {
 	LearnerContext,
 	LearnerPreferences,
@@ -21,6 +28,7 @@ import {
 	type NextStoryBrief,
 	STARTER_NEXT_STORY_BRIEF,
 } from "../src/nextStoryBrief.ts";
+import { dialogueSegments } from "../src/reading_story/dialogue.ts";
 import { completeStructuredAi } from "../src/server/aiService.ts";
 import {
 	createAiTraceContext,
@@ -60,6 +68,7 @@ export interface StoryChainCliOptions {
 	failHandoffAt?: number;
 	help: boolean;
 	json: boolean;
+	languageId?: LanguageId;
 	learnerStatePath?: string;
 	length: number;
 	model: TextModelId;
@@ -104,6 +113,7 @@ brief pipeline. It does not synthesize narration or call an image-generation API
 
 Options:
   -n, --length <n>        Number of stories to generate (default: 5)
+  --language <id>         Story language (default: ${languages[0]?.id}); starts from its starter brief
   --feedback <path>       JSON feedback object, or an array with one per story
   --scenario <path>       JSON timeline of before-story changes and after-story evidence
   --fail-handoff-at <n>   Simulate a malformed handoff after story n
@@ -159,6 +169,17 @@ export function parseStoryChainCliArgs(
 				if (!Number.isSafeInteger(options.length) || options.length < 1) {
 					throw new Error(`${argument} must be a positive integer.`);
 				}
+				index += 1;
+				break;
+			}
+			case "--language": {
+				const value = requiredFlagValue(rawArgs, index, argument);
+				if (!isLanguageId(value)) {
+					throw new Error(
+						`${argument} must be one of: ${languages.map((language) => language.id).join(", ")}.`,
+					);
+				}
+				options.languageId = value;
 				index += 1;
 				break;
 			}
@@ -503,8 +524,7 @@ async function simulateChain(
 			),
 		options.reasoningEffort,
 	);
-	const genre = languages[0];
-	if (!genre) throw new Error("No reading-story genre is configured.");
+	const genre = chainLanguage(options);
 	let preferences = structuredClone(
 		scenario?.initialPreferences ?? {
 			prefer: learner.preferences.prefer,
@@ -513,7 +533,9 @@ async function simulateChain(
 	);
 	let storyMemory = structuredClone(learner.storyMemory);
 	const steps: StoryChainStep[] = [];
-	let inputBrief = STARTER_NEXT_STORY_BRIEF;
+	let inputBrief = options.languageId
+		? starterBriefForLanguage(genre)
+		: STARTER_NEXT_STORY_BRIEF;
 	let pendingExplicitTheme = "";
 	const length = scenario?.steps.length ?? options.length;
 	if (options.failHandoffAt && options.failHandoffAt > length) {
@@ -645,12 +667,46 @@ async function generateStoryWithRetries(
 	}
 }
 
-function formatReadable(steps: StoryChainStep[]): string {
+function chainLanguage(options: Pick<StoryChainCliOptions, "languageId">) {
+	const genre = options.languageId
+		? getLanguage(options.languageId)
+		: languages[0];
+	if (!genre) throw new Error("No reading-story genre is configured.");
+	return genre;
+}
+
+/** Part prose with each quotation followed by its attributed [speaker: delivery]. */
+function attributedParts(story: ReadingStory, genre: Language): string {
+	let dialogueIndex = 0;
+	return story.parts
+		.map((part, index) => {
+			const segments = dialogueSegments(
+				part.text,
+				genre.dialogueQuotes,
+				dialogueIndex,
+			);
+			const text = segments
+				.map((segment) => {
+					if (segment.dialogueIndex === undefined) return segment.text;
+					dialogueIndex += 1;
+					const line = story.dialogue?.[segment.dialogueIndex];
+					return `${segment.text} [${line?.speaker ?? "?"}: ${line?.delivery ?? "?"}]`;
+				})
+				.join("");
+			return `Part ${index + 1}:\n${text}`;
+		})
+		.join("\n\n");
+}
+
+function formatReadable(steps: StoryChainStep[], genre: Language): string {
 	return `${steps
 		.map((step) => {
-			const parts = step.story.parts
-				.map((part, index) => `Part ${index + 1}:\n${part.text}`)
-				.join("\n\n");
+			const parts = attributedParts(step.story, genre);
+			const characters = step.story.characters?.length
+				? step.story.characters
+						.map((character) => `${character.name} (${character.voiceType})`)
+						.join(", ")
+				: "(none)";
 			return [
 				`${"=".repeat(72)}\nSTORY ${step.index}${step.label ? ` [${step.label}]` : ""}: ${step.story.title}`,
 				`Effective preferences before generation:\n${JSON.stringify(step.preferences, null, 2)}`,
@@ -658,6 +714,7 @@ function formatReadable(steps: StoryChainStep[]): string {
 				`Story subject (${step.themeSource}):\n${step.storySubject ?? "(model chooses freely)"}`,
 				`Plot summary:\n${step.story.storySummary}`,
 				`Language focus:\n${step.story.languageFocus}`,
+				`Speaking characters: ${characters}`,
 				parts,
 				`Simulated learner feedback:\n${JSON.stringify(step.feedback, null, 2)}`,
 				`Completed-story memory added to FIFO:\n${JSON.stringify(step.recentStory, null, 2)}`,
@@ -697,7 +754,10 @@ export async function runStoryChainCli(rawArgs: string[]): Promise<void> {
 					scenario,
 					options.json
 						? undefined
-						: (step) => process.stdout.write(formatReadable([step])),
+						: (step) =>
+								process.stdout.write(
+									formatReadable([step], chainLanguage(options)),
+								),
 				),
 		);
 		if (options.json)

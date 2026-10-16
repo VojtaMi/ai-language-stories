@@ -6,6 +6,7 @@ import {
 import type { LearnerPreferences, RecentStoryMemory } from "./learnerState";
 import type { TextModelId, TextReasoningEffort } from "./models";
 import type { NextStoryBrief } from "./nextStoryBrief";
+import type { DialogueLine, StoryCharacter } from "./reading_story/dialogue";
 import { generateReadingManuscript } from "./reading_story/manuscript";
 import { proofreadReadingManuscript } from "./reading_story/proofread";
 import {
@@ -43,6 +44,12 @@ export interface ReadingStory {
 	/** One dominant-action image prompt per pair of parts, in narrative order. */
 	imagePrompts: string[];
 	parts: ReadingStoryPart[];
+	/**
+	 * Speaking characters and one attribution per dialogue quotation across all
+	 * parts, in order. Absent on stories written before dialogue was voiced.
+	 */
+	characters?: StoryCharacter[];
+	dialogue?: DialogueLine[];
 }
 
 /**
@@ -146,6 +153,8 @@ export async function generateReadingStory(
 		generationBrief: nextStoryBrief,
 		...visualPlan,
 		parts,
+		characters: manuscript.characters,
+		dialogue: manuscript.dialogue,
 	};
 }
 

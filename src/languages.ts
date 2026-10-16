@@ -14,6 +14,8 @@ interface LanguageDefinition<Id extends string = string> {
 	calibrationSnippets: string[];
 	recapTitle: string;
 	pronunciationGuidance?: string;
+	/** The one quotation-mark pair stories use for spoken lines, and for nothing else. */
+	dialogueQuotes: { open: string; close: string };
 }
 
 function defineLanguages<const Id extends string>(
@@ -35,6 +37,7 @@ const latinCurriculum = {
 		"Iulia est puella. Iulia in horto est. Hortus parvus est. Marcus in horto ambulat. Iulia rosam spectat. Marcus cantat.",
 	],
 	recapTitle: "Exercitatio brevis",
+	dialogueQuotes: { open: "«", close: "»" },
 };
 
 export const languages = defineLanguages([
@@ -43,6 +46,9 @@ export const languages = defineLanguages([
 		label: "Esperanto",
 		shortCode: "EO",
 		locale: "eo",
+		dialogueQuotes: { open: "«", close: "»" },
+		pronunciationGuidance:
+			"Esperanto spelling is phonetic: every letter has one sound and stress falls on the second-to-last syllable. c is ts; ĉ is ch in church; ĝ is j in jam; ĥ is ch in Bach; j is y in yes; ĵ is s in measure; ŝ is sh; ŭ is w; aj sounds like eye, so kaj is one syllable, kai.",
 		teachingTopics:
 			"vocabulary, roots, affixes, grammar, pronunciation, and why sentences mean what they mean",
 		absoluteBeginnerGuidance:
@@ -61,6 +67,7 @@ export const languages = defineLanguages([
 		label: "German",
 		shortCode: "DE",
 		locale: "de",
+		dialogueQuotes: { open: "„", close: "“" },
 		teachingTopics:
 			"vocabulary, cases, gender and articles, verb person and tense, word order, separable verbs, and pronunciation",
 		absoluteBeginnerGuidance:
@@ -79,6 +86,7 @@ export const languages = defineLanguages([
 		label: "Spanish",
 		shortCode: "ES",
 		locale: "es",
+		dialogueQuotes: { open: "«", close: "»" },
 		teachingTopics:
 			"vocabulary, gender and agreement, verb conjugation and tense, ser and estar, pronunciation, and why sentences mean what they mean",
 		absoluteBeginnerGuidance:
@@ -97,6 +105,7 @@ export const languages = defineLanguages([
 		label: "Dutch",
 		shortCode: "NL",
 		locale: "nl",
+		dialogueQuotes: { open: "“", close: "”" },
 		teachingTopics:
 			"vocabulary, de and het articles, verb conjugation and tense, main-clause word order, separable verbs, pronunciation, and why sentences mean what they mean",
 		absoluteBeginnerGuidance:
@@ -115,6 +124,7 @@ export const languages = defineLanguages([
 		label: "Finnish",
 		shortCode: "FI",
 		locale: "fi",
+		dialogueQuotes: { open: "”", close: "”" },
 		teachingTopics:
 			"vocabulary, pronunciation, vowel harmony, consonant gradation, case endings, verb conjugation, and why sentences mean what they mean",
 		absoluteBeginnerGuidance:
@@ -187,6 +197,9 @@ export function languageFaviconUrl(language: Language): string {
 
 export function languageTtsInstructions(language: Language): string {
 	return [
+		// Esperanto and Latin are not officially supported by Gemini TTS, which
+		// detects the language itself and may translate short fragments.
+		`The transcript is ${language.label}. Read every word exactly as written, in ${language.label}; never translate it into English or another language.`,
 		language.pronunciationGuidance,
 		`Keep ${language.label} pronunciation clear, natural, and learner-friendly.`,
 	]

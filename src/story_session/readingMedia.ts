@@ -1,5 +1,6 @@
 import type { Language } from "../languages";
 import type { NarrationVoiceId } from "../narrationVoice";
+import type { SectionDialogue } from "../reading_story/dialogue";
 import type { StoryOpeningAudio } from "../storyAudio";
 import type { StoryBackgroundImage } from "../storyBackground";
 import { shouldGenerateReadingBackground } from "./background";
@@ -13,6 +14,8 @@ export interface ReadingMediaSection {
 	imagePrompt: string;
 	genre: Language;
 	visualContext: string;
+	/** Attributed speech for voicing this section per character. */
+	dialogue?: SectionDialogue;
 }
 
 export interface ReadingSectionMedia {

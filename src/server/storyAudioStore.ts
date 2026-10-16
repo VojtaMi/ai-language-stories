@@ -6,6 +6,10 @@ import {
 	type NarrationVoiceId,
 	narrationVoiceOptions,
 } from "../narrationVoice";
+import type {
+	DialogueQuotes,
+	SectionDialogue,
+} from "../reading_story/dialogue";
 import type { StoryOpeningAudio } from "../storyAudio";
 import {
 	DEFAULT_TTS_MODEL,
@@ -20,7 +24,12 @@ import {
 	bundleIdPattern,
 	pathExists,
 } from "./storyBundleStore";
-import { tts } from "./tts";
+import { type GeminiTtsModel, tts } from "./tts";
+import {
+	dialogueTurns,
+	synthesizeGeminiDialogue,
+} from "./tts/geminiDialogueTts";
+import { geminiVoice } from "./tts/voices";
 
 const storyAudioDir = join(process.cwd(), "story-audio");
 
@@ -37,12 +46,26 @@ export async function createOpeningAudio(
 		instructions?: string;
 		/** Runs just before a paid TTS call; may throw to refuse it. */
 		beforeProviderCall?: () => void;
+		/** Attributed speech in this section; voiced per character with Gemini. */
+		dialogue?: { quotes: DialogueQuotes; section: SectionDialogue };
 	} = {},
 ): Promise<StoryOpeningAudio | null> {
 	const ttsModel = options.ttsModel ?? DEFAULT_TTS_MODEL;
+	const modelInfo = ttsModelInfo(ttsModel);
+	// Only Gemini can give each speaker a voice; other providers narrate alone.
+	const dialogue =
+		modelInfo.provider === "gemini" && process.env.GEMINI_API_KEY?.trim()
+			? options.dialogue
+			: undefined;
+	// The cast is part of the recording's identity, so a single-voice
+	// recording of the same text is never mistaken for a voiced one.
+	const audioKey = dialogue
+		? `${text}\n${JSON.stringify(dialogue.section)}`
+		: text;
 	try {
 		const existingAudio = await findExistingSectionAudio(
 			text,
+			audioKey,
 			storyId,
 			narrationVoice,
 			ttsModel,
@@ -51,15 +74,26 @@ export async function createOpeningAudio(
 		if (existingAudio) return existingAudio;
 
 		options.beforeProviderCall?.();
-		const speech = await tts({
-			openai,
-			text,
-			instructions: options.instructions,
-			...narrationVoiceOptions(narrationVoice),
-			...ttsModelSpeechOptions(ttsModel),
-		});
+		const speech = dialogue
+			? await synthesizeGeminiDialogue(
+					modelInfo.model as GeminiTtsModel,
+					dialogueTurns(
+						text,
+						dialogue.quotes,
+						dialogue.section,
+						geminiVoice(narrationVoice),
+						options.instructions ?? "",
+					),
+				)
+			: await tts({
+					openai,
+					text,
+					instructions: options.instructions,
+					...narrationVoiceOptions(narrationVoice),
+					...ttsModelSpeechOptions(ttsModel),
+				});
 		const filename = audioFilename(
-			text,
+			audioKey,
 			narrationVoice,
 			speech.model,
 			speech.extension,
@@ -98,6 +132,7 @@ export async function createOpeningAudio(
  */
 async function findExistingSectionAudio(
 	text: string,
+	audioKey: string,
 	storyId: string,
 	narrationVoice: NarrationVoiceId,
 	ttsModel: TtsModelId,
@@ -113,7 +148,7 @@ async function findExistingSectionAudio(
 	for (const candidate of candidates) {
 		const provider = ttsModelInfo(candidate);
 		const filename = audioFilename(
-			text,
+			audioKey,
 			narrationVoice,
 			provider.model,
 			provider.extension,
@@ -144,8 +179,9 @@ export async function readStoryAudio(relativePath: string) {
 	return readFile(join(storyAudioDir, relativePath));
 }
 
+/** `audioKey` is the narrated text, plus the cast when voiced per character. */
 function audioFilename(
-	text: string,
+	audioKey: string,
 	voice: NarrationVoiceId,
 	model: string,
 	extension: "mp3" | "wav",
@@ -153,9 +189,9 @@ function audioFilename(
 ) {
 	if (sectionIndex !== undefined) {
 		const modelToken = model.replace(/[^a-zA-Z0-9_-]/g, "");
-		return `section_${sectionIndex}_${voice}_${modelToken}_${audioTextHash(text)}.${extension}`;
+		return `section_${sectionIndex}_${voice}_${modelToken}_${audioTextHash(audioKey)}.${extension}`;
 	}
-	return `opening-${audioTextHash(text)}-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+	return `opening-${audioTextHash(audioKey)}-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 }
 
 function audioPath(storyId: string, filename: string) {

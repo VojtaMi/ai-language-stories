@@ -18,6 +18,7 @@ import {
 	type NarrationVoiceId,
 	pickRandomNarrationVoice,
 } from "../narrationVoice";
+import { readingSectionDialogue } from "../reading_story/dialogue";
 import { READING_STORY_MAX_PARTS } from "../reading_story/split";
 import {
 	type ChatMessage,
@@ -94,6 +95,18 @@ export async function listPreparedReadingOpenings(
 		}));
 }
 
+/** The first section's attributed speech, for narrating it per character. */
+function firstSectionDialogue(genre: Language, story: ReadingStory) {
+	const section = readingSectionDialogue(
+		story.parts,
+		story.characters,
+		story.dialogue,
+		1,
+		genre.dialogueQuotes,
+	);
+	return section ? { dialogue: { quotes: genre.dialogueQuotes, section } } : {};
+}
+
 export async function prepareMissingReadingOpenings(
 	openai: OpenAI,
 	learnerId: string,
@@ -138,6 +151,7 @@ export async function prepareMissingReadingOpenings(
 								sectionIndex: 1,
 								ttsModel,
 								instructions: languageTtsInstructions(genre),
+								...firstSectionDialogue(genre, existing.readingStory),
 							},
 						)) ?? {},
 					);
@@ -275,6 +289,7 @@ async function createPreparedReadingOpening(
 			sectionIndex: 1,
 			ttsModel,
 			instructions: languageTtsInstructions(genre),
+			...firstSectionDialogue(genre, readingStory),
 		}),
 		prewarmReadingTranslations(openai, genre, readingStory),
 	]);

@@ -23,6 +23,7 @@ import {
 	pickRandomNarrationVoice,
 } from "../narrationVoice";
 import { consumePreparedReadingOpening } from "../openings";
+import { readingSectionDialogue } from "../reading_story/dialogue";
 import { loadSavedStory, saveStoryMedia } from "../saves";
 import {
 	readingImagePrompt,
@@ -111,6 +112,13 @@ function readingMediaSection(
 		imagePrompt: readingImagePrompt(story, partIndex),
 		genre: selected,
 		visualContext: readingVisualContext(story),
+		dialogue: readingSectionDialogue(
+			story.parts,
+			story.characters,
+			story.dialogue,
+			partIndex,
+			selected.dialogueQuotes,
+		),
 	};
 }
 
@@ -235,6 +243,7 @@ export function useStorySession({
 					{
 						sectionIndex: section.partIndex,
 						ttsModel: readSelectedNarrationModel(),
+						dialogue: section.dialogue,
 					},
 				),
 			generateBackground: async (section) => {

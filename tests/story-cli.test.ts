@@ -138,6 +138,15 @@ assert.equal(chainDefaults.length, 5);
 assert.equal(chainDefaults.model, DEFAULT_TEXT_MODEL);
 assert.equal(chainDefaults.retries, 2);
 assert.equal(chainDefaults.failHandoffAt, undefined);
+assert.equal(chainDefaults.languageId, undefined);
+assert.equal(
+	parseStoryChainCliArgs(["--language", "german"]).languageId,
+	"german",
+);
+assert.throws(
+	() => parseStoryChainCliArgs(["--language", "klingon"]),
+	/--language must be one of/,
+);
 assert.equal(parseStoryChainCliArgs(["-n", "3", "--json"]).length, 3);
 assert.equal(
 	parseStoryChainCliArgs(["--fail-handoff-at", "2"]).failHandoffAt,

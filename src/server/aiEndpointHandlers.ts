@@ -15,6 +15,10 @@ import {
 } from "../models";
 import { isNarrationVoiceId } from "../narrationVoice";
 import { parseNextStoryBrief } from "../nextStoryBrief";
+import {
+	parseDialogueAttribution,
+	type SectionDialogue,
+} from "../reading_story/dialogue";
 import { READING_STORY_MAX_PARTS } from "../reading_story/split";
 import { isStoryDifficulty } from "../storyFeedback";
 import { DEFAULT_TTS_MODEL, isTtsModelId } from "../ttsModel";
@@ -103,8 +107,15 @@ export async function handleOpeningAudioRequest(
 	openai: OpenAI,
 	beforeProviderCall?: () => void,
 ) {
-	const { genreId, text, storyId, narrationVoice, sectionIndex, ttsModel } =
-		await readJsonBody(req);
+	const {
+		genreId,
+		text,
+		storyId,
+		narrationVoice,
+		sectionIndex,
+		ttsModel,
+		dialogue,
+	} = await readJsonBody(req);
 	if (!isLanguageId(genreId)) {
 		sendJson(res, 400, { error: "genreId is invalid." });
 		return;
@@ -127,14 +138,43 @@ export async function handleOpeningAudioRequest(
 		sendJson(res, 400, { error: "narrationVoice is required." });
 		return;
 	}
+	const language = getLanguage(genreId);
+	let sectionDialogue: SectionDialogue | undefined;
+	if (dialogue !== undefined) {
+		try {
+			const parsed = parseDialogueAttribution(
+				text,
+				language.dialogueQuotes,
+				dialogue?.characters,
+				dialogue?.lines,
+			);
+			sectionDialogue = {
+				characters: parsed.characters,
+				lines: parsed.dialogue,
+			};
+		} catch (error) {
+			sendJson(res, 400, {
+				error: `dialogue is invalid: ${error instanceof Error ? error.message : error}`,
+			});
+			return;
+		}
+	}
 	const audio = await withAiTraceMetadata(
 		{ storyId, storyPhase: "media", mediaType: "narration" },
 		() =>
 			createOpeningAudio(openai, text, storyId, narrationVoice, {
 				sectionIndex: validSectionIndex(sectionIndex),
 				ttsModel: isTtsModelId(ttsModel) ? ttsModel : DEFAULT_TTS_MODEL,
-				instructions: languageTtsInstructions(getLanguage(genreId)),
+				instructions: languageTtsInstructions(language),
 				beforeProviderCall,
+				...(sectionDialogue
+					? {
+							dialogue: {
+								quotes: language.dialogueQuotes,
+								section: sectionDialogue,
+							},
+						}
+					: {}),
 			}),
 	);
 	if (!audio) {
