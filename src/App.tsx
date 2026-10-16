@@ -294,6 +294,7 @@ function ReadingApp({
 					storyId={activeSaveId}
 					currentImageUrl={displayedBackground?.backgroundImageUrl ?? null}
 					openingAudioUrl={openingAudio?.openingAudioUrl ?? null}
+					openingAudioSegments={openingAudio?.openingAudioSegments}
 					openingAudioLoading={openingAudioLoading}
 					openingAudioError={openingAudioError}
 					onRetryOpeningAudio={retryOpeningAudio}

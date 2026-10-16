@@ -10,7 +10,7 @@ import type {
 	DialogueQuotes,
 	SectionDialogue,
 } from "../reading_story/dialogue";
-import type { StoryOpeningAudio } from "../storyAudio";
+import type { NarrationSegment, StoryOpeningAudio } from "../storyAudio";
 import {
 	DEFAULT_TTS_MODEL,
 	TTS_MODELS,
@@ -84,6 +84,7 @@ export async function createOpeningAudio(
 						geminiVoice(narrationVoice),
 						options.instructions ?? "",
 					),
+					text.length,
 				)
 			: await tts({
 					openai,
@@ -102,6 +103,9 @@ export async function createOpeningAudio(
 		const filePath = audioPath(storyId, filename);
 		await mkdir(dirname(filePath), { recursive: true });
 		await writeFile(filePath, speech.audio);
+		if (speech.segments) {
+			await writeFile(segmentsPath(filePath), JSON.stringify(speech.segments));
+		}
 		return {
 			openingAudioUrl: `/api/story-audio/${storyId}/${filename}`,
 			openingAudioSource: "generated",
@@ -111,6 +115,7 @@ export async function createOpeningAudio(
 			openingAudioProvider: speech.provider,
 			openingAudioModel: speech.model,
 			openingAudioMimeType: speech.mimeType,
+			...(speech.segments ? { openingAudioSegments: speech.segments } : {}),
 		};
 	} catch (err) {
 		// A refusal (such as a rate limit) belongs to the caller, not to a
@@ -154,7 +159,9 @@ async function findExistingSectionAudio(
 			provider.extension,
 			sectionIndex,
 		);
-		if (!(await pathExists(audioPath(storyId, filename)))) continue;
+		const filePath = audioPath(storyId, filename);
+		if (!(await pathExists(filePath))) continue;
+		const segments = await readSegments(filePath);
 
 		return {
 			openingAudioUrl: `/api/story-audio/${storyId}/${filename}`,
@@ -165,9 +172,27 @@ async function findExistingSectionAudio(
 			openingAudioProvider: provider.provider,
 			openingAudioModel: provider.model,
 			openingAudioMimeType: provider.mimeType,
+			...(segments ? { openingAudioSegments: segments } : {}),
 		};
 	}
 	return null;
+}
+
+/** Request boundaries of a stitched recording live beside it. */
+function segmentsPath(audioFilePath: string) {
+	return `${audioFilePath}.segments.json`;
+}
+
+async function readSegments(
+	audioFilePath: string,
+): Promise<NarrationSegment[] | undefined> {
+	try {
+		return JSON.parse(
+			await readFile(segmentsPath(audioFilePath), "utf8"),
+		) as NarrationSegment[];
+	} catch {
+		return undefined;
+	}
 }
 
 export async function readStoryAudio(relativePath: string) {

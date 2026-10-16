@@ -586,6 +586,7 @@ export function useStorySession({
 						openingAudioSource: preparedOpening.openingAudioSource,
 						openingAudioText: preparedOpening.openingAudioText ?? text,
 						openingAudioVoice: preparedOpening.openingAudioVoice,
+						openingAudioSegments: preparedOpening.openingAudioSegments,
 					},
 				});
 			}
@@ -1097,6 +1098,7 @@ export function useStorySession({
 								openingAudioText:
 									save.openingAudioText ?? save.currentTarget ?? "",
 								openingAudioVoice: save.openingAudioVoice,
+								openingAudioSegments: save.openingAudioSegments,
 							}
 						: null;
 

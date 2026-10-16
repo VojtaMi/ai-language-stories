@@ -1,4 +1,5 @@
 import type OpenAI from "openai";
+import type { NarrationSegment } from "../../storyAudio";
 import type { GeminiTtsModel } from "./constants";
 
 export type TtsProvider = "openai" | "gemini";
@@ -29,4 +30,6 @@ export interface SynthesizedSpeech {
 	model: string;
 	provider: TtsProvider;
 	voice: string;
+	/** Request boundaries when the audio was stitched from several requests. */
+	segments?: NarrationSegment[];
 }

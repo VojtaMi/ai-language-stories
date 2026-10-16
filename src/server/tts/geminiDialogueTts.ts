@@ -4,12 +4,15 @@ import {
 	dialogueSegments,
 	type SectionDialogue,
 } from "../../reading_story/dialogue";
+import type { NarrationSegment } from "../../storyAudio";
 import { AiTraceError, traceAiCall } from "../aiTrace";
 import type { GeminiTtsModel } from "./constants";
 import type { SynthesizedSpeech } from "./types";
 import { pcmToWav } from "./wav";
 
 const SAMPLE_RATE = 24_000;
+/** 16-bit mono PCM. */
+const BYTES_PER_SECOND = SAMPLE_RATE * 2;
 /** Pause inserted where two separately synthesized requests meet. */
 const REQUEST_GAP_MS = 300;
 const MAX_ATTEMPTS = 3;
@@ -44,6 +47,8 @@ export interface SpeechTurn {
 	voice: string;
 	text: string;
 	style: string;
+	/** Where this turn's stretch of the section text begins. */
+	textStart: number;
 }
 
 /**
@@ -92,7 +97,10 @@ export function dialogueTurns(
 			character.voiceType,
 		]),
 	);
+	let cursor = 0;
 	return dialogueSegments(text, quotes).flatMap((segment): SpeechTurn[] => {
+		const textStart = cursor;
+		cursor += segment.text.length;
 		if (segment.dialogueIndex === undefined) {
 			// Punctuation left over from the quotation (", sagt er.") would read as
 			// part of the previous speaker's line.
@@ -104,6 +112,7 @@ export function dialogueTurns(
 							voice: narratorVoice,
 							text: narration,
 							style: languageStyle,
+							textStart,
 						},
 					]
 				: [];
@@ -121,6 +130,7 @@ export function dialogueTurns(
 				voice,
 				text: spoken,
 				style: `${languageStyle} Speak as ${VOICE_TYPE_STYLE[voiceType]}. Delivery: ${line.delivery}.`,
+				textStart,
 			},
 		];
 	});
@@ -144,23 +154,43 @@ export function groupSpeechTurns(turns: SpeechTurn[]): SpeechTurn[][] {
 	return groups;
 }
 
-/** Narrates one section with a voice per speaker, through the Interactions API. */
+/**
+ * Narrates one section with a voice per speaker, through the Interactions API.
+ * Each request's measured duration and text range are returned as segments,
+ * so highlighting can follow the real boundaries instead of one estimate.
+ */
 export async function synthesizeGeminiDialogue(
 	model: GeminiTtsModel,
 	turns: SpeechTurn[],
+	textLength: number,
 ): Promise<SynthesizedSpeech> {
 	const apiKey = process.env.GEMINI_API_KEY ?? "";
 	if (!apiKey) throw new Error("Gemini API key is not configured.");
 	const gap = Buffer.alloc(
 		Math.round((SAMPLE_RATE * REQUEST_GAP_MS) / 1000) * 2,
 	);
+	const groups = groupSpeechTurns(turns);
 	const pcm: Buffer[] = [];
+	const segments: NarrationSegment[] = [];
+	let seconds = 0;
 	// Sequential on purpose: requests share a small per-minute quota.
-	for (const group of groupSpeechTurns(turns)) {
-		if (pcm.length) pcm.push(gap);
-		pcm.push(await synthesizeGroup(apiKey, model, group));
+	for (const [index, group] of groups.entries()) {
+		if (index > 0) {
+			pcm.push(gap);
+			seconds += gap.length / BYTES_PER_SECOND;
+		}
+		const audio = await synthesizeGroup(apiKey, model, group);
+		pcm.push(audio);
+		segments.push({
+			textStart: index === 0 ? 0 : group[0].textStart,
+			textEnd: groups[index + 1]?.[0].textStart ?? textLength,
+			start: seconds,
+			end: seconds + audio.length / BYTES_PER_SECOND,
+		});
+		seconds += audio.length / BYTES_PER_SECOND;
 	}
 	return {
+		segments,
 		audio: pcmToWav(Buffer.concat(pcm)),
 		extension: "wav",
 		mimeType: "audio/wav",

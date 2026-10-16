@@ -1,3 +1,5 @@
+import type { NarrationSegment } from "../../storyAudio";
+
 interface EstimatedWordTiming {
 	offset: number;
 	start: number;
@@ -44,4 +46,35 @@ export function wordAtTime(
 		timings.find((word) => progress >= word.start && progress < word.end)
 			?.offset ?? null
 	);
+}
+
+/**
+ * The word being spoken at `time`. A recording stitched from several requests
+ * carries their measured boundaries, so the length-based estimate runs inside
+ * each segment and cannot drift across voices or the pauses between them.
+ * During a pause, the segment's last word stays highlighted.
+ */
+export function narrationWordAtTime(
+	text: string,
+	time: number,
+	duration: number,
+	segments?: NarrationSegment[],
+): number | null {
+	if (!segments?.length) {
+		return wordAtTime(estimateWordTimings(text), time, duration);
+	}
+	if (!Number.isFinite(duration) || time < 0 || time >= duration) return null;
+	let segment: NarrationSegment | undefined;
+	for (const candidate of segments) {
+		if (time >= candidate.start) segment = candidate;
+	}
+	if (!segment) return null;
+	const spoken = segment.end - segment.start;
+	const local = Math.min(time - segment.start, spoken * 0.999);
+	const offset = wordAtTime(
+		estimateWordTimings(text.slice(segment.textStart, segment.textEnd)),
+		local,
+		spoken,
+	);
+	return offset === null ? null : segment.textStart + offset;
 }

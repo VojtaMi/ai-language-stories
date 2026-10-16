@@ -2,6 +2,17 @@ import type { NarrationVoiceId } from "./narrationVoice";
 
 export type OpeningAudioSource = "generated";
 
+/**
+ * One separately synthesized stretch of a recording: the text range it speaks
+ * (`text.slice(textStart, textEnd)`) and when it plays, in seconds.
+ */
+export interface NarrationSegment {
+	textStart: number;
+	textEnd: number;
+	start: number;
+	end: number;
+}
+
 export interface StoryOpeningAudio {
 	openingAudioUrl: string;
 	openingAudioSource: OpeningAudioSource;
@@ -11,6 +22,8 @@ export interface StoryOpeningAudio {
 	openingAudioProvider?: string;
 	openingAudioModel?: string;
 	openingAudioMimeType?: string;
+	/** Measured request boundaries of a recording stitched from several requests. */
+	openingAudioSegments?: NarrationSegment[];
 }
 
 export function isStoryOpeningAudioForText(

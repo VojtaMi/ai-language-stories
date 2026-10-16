@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
 	getWordAudioUrl,
 	logLearnerWordClick,
 	regenerateWordAudioUrl,
 } from "../ai";
+import type { NarrationSegment } from "../storyAudio";
 import "../gallery/gallery.css";
 import { GalleryModal } from "../gallery/GalleryModal";
 import type { Language } from "../languages";
@@ -13,7 +14,7 @@ import type { StoryRecapExerciseResult, StoryRecapLesson } from "../storyRecap";
 import { isStoryName } from "../storyVocabulary";
 import { LanguageChatModal } from "./chatbot/LanguageChatModal";
 import { ExerciseControls } from "./controls/ExerciseControls";
-import { estimateWordTimings, wordAtTime } from "./story/narrationTiming";
+import { narrationWordAtTime } from "./story/narrationTiming";
 import { OpeningAudioControl } from "./story/OpeningAudioControl";
 import { StoryCompletionView } from "./story/StoryCompletionView";
 import { StoryLoading } from "./story/StoryLoading";
@@ -55,6 +56,7 @@ interface ExerciseScreenProps {
 	storyId: string | null;
 	currentImageUrl: string | null;
 	openingAudioUrl: string | null;
+	openingAudioSegments?: NarrationSegment[];
 	openingAudioLoading?: boolean;
 	openingAudioError?: boolean;
 	onRetryOpeningAudio?: () => void;
@@ -93,6 +95,7 @@ export default function ExerciseScreen({
 	storyId,
 	currentImageUrl,
 	openingAudioUrl,
+	openingAudioSegments,
 	openingAudioLoading,
 	openingAudioError,
 	onRetryOpeningAudio,
@@ -145,6 +148,9 @@ export default function ExerciseScreen({
 	const activeAudioUrl = reviewing
 		? (segments[selectedIndex].narrationAudio?.openingAudioUrl ?? null)
 		: openingAudioUrl;
+	const activeAudioSegments = reviewing
+		? segments[selectedIndex].narrationAudio?.openingAudioSegments
+		: openingAudioSegments;
 	const [narrationPosition, setNarrationPosition] = useState<{
 		audioUrl: string | null;
 		text: string | null;
@@ -162,10 +168,6 @@ export default function ExerciseScreen({
 		},
 		[activeAudioUrl, activeText],
 	);
-	const wordTimings = useMemo(
-		() => estimateWordTimings(activeText ?? ""),
-		[activeText],
-	);
 	const activeWordOffset =
 		activeAudioUrl &&
 		narrationPosition?.audioUrl === activeAudioUrl &&
@@ -174,10 +176,11 @@ export default function ExerciseScreen({
 				narrationPosition.time >= narrationPosition.duration
 				? (activeText?.length ?? null)
 				: narrationPosition.time > 0
-					? wordAtTime(
-							wordTimings,
+					? narrationWordAtTime(
+							activeText ?? "",
 							narrationPosition.time,
 							narrationPosition.duration,
+							activeAudioSegments,
 						)
 					: null
 			: null;

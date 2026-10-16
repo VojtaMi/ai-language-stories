@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { narrationWordAtTime } from "../src/exercise_screen/story/narrationTiming.ts";
 import type { Language } from "../src/languages.ts";
 import {
 	DEFAULT_TEXT_MODEL,
@@ -56,6 +57,7 @@ import {
 	assignCharacterVoices,
 	dialogueTurns,
 	groupSpeechTurns,
+	synthesizeGeminiDialogue,
 } from "../src/server/tts/geminiDialogueTts.ts";
 import {
 	type ChatMessage,
@@ -653,6 +655,78 @@ assert.deepEqual(
 	"Requests hold at most two voices and cut only where a third joins.",
 );
 console.log("checked reading story: dialogue voices are grouped per request");
+
+// --- Measured segment timing ---------------------------------------------------
+
+// Two requests, [N Tomas N] and [Lina], each answered with one second of audio.
+const segmentText = "Tomas respondas: «Jes!» Lina diras: «Bone.»";
+const segmentTurns = dialogueTurns(
+	segmentText,
+	guillemets,
+	thirdSection ?? { characters: [], lines: [] },
+	"Iapetus",
+	"",
+);
+const realFetch = globalThis.fetch;
+const realGeminiKey = process.env.GEMINI_API_KEY;
+process.env.GEMINI_API_KEY = "test-key";
+globalThis.fetch = (async () =>
+	new Response(
+		JSON.stringify({
+			steps: [
+				{
+					content: [
+						{
+							type: "audio",
+							data: Buffer.alloc(48_000).toString("base64"),
+						},
+					],
+				},
+			],
+		}),
+	)) as typeof fetch;
+const stitched = await synthesizeGeminiDialogue(
+	"gemini-3.8-flash-lite-tts",
+	segmentTurns,
+	segmentText.length,
+);
+globalThis.fetch = realFetch;
+process.env.GEMINI_API_KEY = realGeminiKey;
+assert.deepEqual(
+	stitched.segments?.map((segment) => [
+		segmentText.slice(segment.textStart, segment.textEnd),
+		segment.start,
+		segment.end,
+	]),
+	[
+		["Tomas respondas: «Jes!» Lina diras: ", 0, 1],
+		["«Bone.»", 1.3, 2.3],
+	],
+	"Segments cover the whole text in order, with the pause between requests.",
+);
+
+const timedText = "Unu du. Tri kvar.";
+const timedSegments = [
+	{ textStart: 0, textEnd: 8, start: 0, end: 1 },
+	{ textStart: 8, textEnd: timedText.length, start: 3, end: 4 },
+];
+assert.equal(narrationWordAtTime(timedText, 0.1, 4, timedSegments), 0);
+assert.equal(
+	narrationWordAtTime(timedText, 2, 4, timedSegments),
+	4,
+	"During a pause the segment's last word stays highlighted.",
+);
+assert.equal(
+	narrationWordAtTime(timedText, 3.1, 4, timedSegments),
+	8,
+	"The next segment starts exactly at its measured time.",
+);
+assert.equal(
+	narrationWordAtTime(timedText, 3.1, 4),
+	12,
+	"Without segments the estimate spans the whole recording.",
+);
+console.log("checked reading story: highlighting follows measured segments");
 
 // --- Shared visual core and per-pair instructions ----------------------------
 
