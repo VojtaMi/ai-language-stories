@@ -117,7 +117,7 @@ function fillMissingWordSpec(
 		instructions:
 			"Use exactly three fill choices, using only words from the story. " +
 			"This exercise is the story's focus test: it must exercise the story's primary language focus stated below. " +
-			"Exactly one choice may fit the blank; each wrong choice must be impossible in that sentence because of the focus, never merely a different true fact from the story. " +
+			"Exactly one choice may complete the sentence; each wrong choice must be impossible in its place because of the focus, never merely a different true fact from the story. " +
 			"For a grammar focus, make the choices forms of the same word or phrase that differ only in the focus feature, such as the article, ending, case, or tense (for example den Käse | der Käse | dem Käse), so the sentence alone decides the answer without recalling the story's exact wording. " +
 			`Choose the fill sentence so its blanked \`answer\` is the exact ${genre.label} word or short phrase that realizes that focus. ` +
 			"The `answer` is a single word or at most a short two-word phrase. " +
@@ -128,11 +128,16 @@ function fillMissingWordSpec(
 			if (countWords(answer) > 2) {
 				throw new Error("Recap fill answer must be at most two words.");
 			}
-			const sentence = requiredString(
+			const written = requiredString(
 				value.sentence,
 				"fill sentence",
 				"Recap JSON",
 			);
+			// Models sometimes pre-cut the gap despite the instructions; one
+			// unambiguous gap is restored rather than failing the whole recap.
+			const gaps = written.match(/_{2,}/g) ?? [];
+			const sentence =
+				gaps.length === 1 ? written.replace(/_{2,}/, answer) : written;
 			const { before, after } = splitOnWord(
 				sentence,
 				answer,

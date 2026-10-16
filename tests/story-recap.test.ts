@@ -80,4 +80,31 @@ assert.throws(
 );
 console.log("checked recap fill: answer capped at two words");
 
+// A sentence the model pre-cut around one gap gets its answer back.
+{
+	const lesson = parseStoryRecapLesson(
+		recap({
+			sentence: "Lina ___ la monujon al la virino.",
+			answer: "donas",
+			choices: ["donas", "donis", "donos"],
+		}),
+	);
+	assert.equal(lesson.exercises[1].sentenceBeforeBlank, "Lina ");
+	assert.equal(
+		lesson.exercises[1].sentenceAfterBlank,
+		" la monujon al la virino.",
+	);
+}
+// Two gaps are ambiguous and still fail.
+assert.throws(() =>
+	parseStoryRecapLesson(
+		recap({
+			sentence: "Lina ___ la ___.",
+			answer: "donas",
+			choices: ["donas", "donis", "donos"],
+		}),
+	),
+);
+console.log("checked recap fill: one pre-cut gap is restored");
+
 console.log("\nstory recap checks passed");
