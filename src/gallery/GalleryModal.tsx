@@ -20,7 +20,12 @@ export function GalleryModal({
 			const all =
 				urls.length > 0 ? urls : currentImageUrl ? [currentImageUrl] : [];
 			setImages(all);
-			setIndex(0);
+			// Open on the picture the learner is looking at, not the first one.
+			const path = (url: string) => url.split("?")[0];
+			const current = currentImageUrl
+				? all.findIndex((url) => path(url) === path(currentImageUrl))
+				: -1;
+			setIndex(Math.max(current, 0));
 		});
 	}, [storyId, currentImageUrl]);
 
