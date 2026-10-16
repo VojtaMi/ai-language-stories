@@ -55,6 +55,9 @@ assert.match(germanPrompt, /verb-second/i);
 const spanish = getLanguage("spanish");
 const spanishRecap = buildStoryRecapPrompt("present-tense actions", spanish);
 assert.match(spanishRecap, /Spanish recap lesson/);
+assert.match(spanishRecap, /Exactly one choice may fit the blank/);
+assert.match(spanishRecap, /differ only in the focus feature/);
+assert.match(spanishRecap, /every other choice must be clearly false/);
 assert.equal(spanish.recapTitle, "Práctica breve");
 
 const dutch = getLanguage("dutch");

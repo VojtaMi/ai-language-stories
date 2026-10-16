@@ -115,8 +115,10 @@ function fillMissingWordSpec(
 			choices: ["correct", "wrong", "wrong"],
 		},
 		instructions:
-			"Use exactly three fill choices, using only words and facts from the story. " +
+			"Use exactly three fill choices, using only words from the story. " +
 			"This exercise is the story's focus test: it must exercise the story's primary language focus stated below. " +
+			"Exactly one choice may fit the blank; each wrong choice must be impossible in that sentence because of the focus, never merely a different true fact from the story. " +
+			"For a grammar focus, make the choices forms of the same word or phrase that differ only in the focus feature, such as the article, ending, case, or tense (for example den Käse | der Käse | dem Käse), so the sentence alone decides the answer without recalling the story's exact wording. " +
 			`Choose the fill sentence so its blanked \`answer\` is the exact ${genre.label} word or short phrase that realizes that focus. ` +
 			"The `answer` is a single word or at most a short two-word phrase. " +
 			`The fill sentence must be one complete, natural ${genre.label} sentence containing the answer written exactly as in \`answer\` — the app carves the blank out of it itself, so write a normal sentence and do not pre-split it or omit the answer.`,
@@ -164,7 +166,7 @@ const storyQuestionSpec: RecapExerciseSpec<StoryRecapQuestionExercise> = {
 		choices: ["correct", "wrong"],
 	},
 	instructions:
-		"Use two or three story-question choices, using only facts from the story.",
+		"Use two or three story-question choices, using only facts from the story. Exactly one choice is true according to the story; every other choice must be clearly false in the story.",
 	parse(value) {
 		if (!isObject(value)) throw new Error("Recap story question is invalid.");
 		const answer = requiredString(
