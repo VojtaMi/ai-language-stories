@@ -4,12 +4,15 @@ import { listStoryImages } from "./galleryApi";
 interface GalleryModalProps {
 	storyId: string;
 	currentImageUrl: string | null;
+	/** Open on `currentImageUrl` rather than the story's first picture. */
+	startAtCurrent: boolean;
 	onClose: () => void;
 }
 
 export function GalleryModal({
 	storyId,
 	currentImageUrl,
+	startAtCurrent,
 	onClose,
 }: GalleryModalProps) {
 	const [images, setImages] = useState<string[]>([]);
@@ -20,14 +23,16 @@ export function GalleryModal({
 			const all =
 				urls.length > 0 ? urls : currentImageUrl ? [currentImageUrl] : [];
 			setImages(all);
-			// Open on the picture the learner is looking at, not the first one.
+			// While reading, open on the picture behind the text; otherwise
+			// (e.g. reviewing a finished story) start from the first picture.
 			const path = (url: string) => url.split("?")[0];
-			const current = currentImageUrl
-				? all.findIndex((url) => path(url) === path(currentImageUrl))
-				: -1;
+			const current =
+				startAtCurrent && currentImageUrl
+					? all.findIndex((url) => path(url) === path(currentImageUrl))
+					: -1;
 			setIndex(Math.max(current, 0));
 		});
-	}, [storyId, currentImageUrl]);
+	}, [storyId, currentImageUrl, startAtCurrent]);
 
 	useEffect(() => {
 		function onKey(e: KeyboardEvent) {

@@ -119,6 +119,8 @@ function fillMissingWordSpec(
 			"This exercise is the story's focus test: it must exercise the story's primary language focus stated below. " +
 			"Exactly one choice may complete the sentence; each wrong choice must be impossible in its place because of the focus, never merely a different true fact from the story. " +
 			"For a grammar focus, make the choices forms of the same word or phrase that differ only in the focus feature, such as the article, ending, case, or tense (for example den Käse | der Käse | dem Käse), so the sentence alone decides the answer without recalling the story's exact wording. " +
+			"When the choices differ in tense, the sentence must contain a time expression that allows only the answer's tense, such as yesterday or tomorrow in the story's language; words like then, afterwards, or in the evening do not decide tense, so add a deciding one to the story's sentence when needed. " +
+			"Every choice must be a real, correctly spelled form of the word: keep the stem exactly as in the answer and change only the tested part. " +
 			`Choose the fill sentence so its blanked \`answer\` is the exact ${genre.label} word or short phrase that realizes that focus. ` +
 			"The `answer` is a single word or at most a short two-word phrase. " +
 			`The fill sentence must be one complete, natural ${genre.label} sentence containing the answer written exactly as in \`answer\` — the app carves the blank out of it itself, so write a normal sentence and do not pre-split it or omit the answer.`,

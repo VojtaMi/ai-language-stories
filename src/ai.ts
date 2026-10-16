@@ -27,7 +27,12 @@ import type { TtsModelId } from "./ttsModel";
 
 export type { ChatMessage, ReadingStory, ReadingStoryPart };
 
-const STORY_RECAP_MAX_TOKENS = 900;
+/**
+ * Low reasoning lets the recap model check that only one choice fits and that
+ * distractors are real words; it used up to ~800 tokens, mostly reasoning, so
+ * this is the completion endpoint's maximum.
+ */
+const STORY_RECAP_MAX_TOKENS = 1200;
 
 export async function fetchProviderAvailability(): Promise<ProviderAvailability> {
 	const res = await fetch("/api/provider-availability");
@@ -247,6 +252,7 @@ export async function generateStoryRecapLesson(
 		model,
 		STORY_RECAP_MAX_TOKENS,
 		"json",
+		"low",
 	);
 	return parseStoryRecapLesson(text, genre);
 }

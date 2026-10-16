@@ -57,6 +57,10 @@ const spanishRecap = buildStoryRecapPrompt("present-tense actions", spanish);
 assert.match(spanishRecap, /Spanish recap lesson/);
 assert.match(spanishRecap, /Exactly one choice may complete the sentence/);
 assert.match(spanishRecap, /differ only in the focus feature/);
+assert.match(
+	spanishRecap,
+	/time expression that allows only the answer's tense/,
+);
 assert.match(spanishRecap, /every other choice must be clearly false/);
 assert.equal(spanish.recapTitle, "Práctica breve");
 

@@ -120,7 +120,11 @@ export default function ExerciseScreen({
 	onCaptureBotQuestions,
 	onWordLookup,
 }: ExerciseScreenProps) {
-	const [galleryOpen, setGalleryOpen] = useState(false);
+	// Where an open gallery starts: the finished story reviews from the first
+	// picture, while reading it opens on the picture behind the text.
+	const [galleryStart, setGalleryStart] = useState<"first" | "current" | null>(
+		null,
+	);
 	const [chatOpen, setChatOpen] = useState(false);
 	const [tutorQuestion, setTutorQuestion] = useState<{
 		id: number;
@@ -434,7 +438,7 @@ export default function ExerciseScreen({
 					feedbackEditable={feedbackEditable}
 					priorFeedback={storyFeedback}
 					canShowGallery={canShowGallery}
-					onOpenGallery={() => setGalleryOpen(true)}
+					onOpenGallery={() => setGalleryStart("first")}
 					onSubmitStoryFeedback={onSubmitStoryFeedback}
 					onStoryFeedbackDraftChange={onStoryFeedbackDraftChange}
 				/>
@@ -481,7 +485,7 @@ export default function ExerciseScreen({
 				storyId={storyId}
 				currentImageUrl={currentImageUrl}
 				onBackToMenu={onBackToMenu}
-				onOpenGallery={() => setGalleryOpen(true)}
+				onOpenGallery={() => setGalleryStart("current")}
 			/>
 
 			<LanguageChatModal
@@ -497,11 +501,12 @@ export default function ExerciseScreen({
 				pendingQuestion={tutorQuestion}
 			/>
 
-			{galleryOpen && canShowGallery && storyId && currentImageUrl && (
+			{galleryStart && canShowGallery && storyId && currentImageUrl && (
 				<GalleryModal
 					storyId={storyId}
 					currentImageUrl={currentImageUrl}
-					onClose={() => setGalleryOpen(false)}
+					startAtCurrent={galleryStart === "current"}
+					onClose={() => setGalleryStart(null)}
 				/>
 			)}
 		</div>
