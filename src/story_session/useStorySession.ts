@@ -666,7 +666,6 @@ export function useStorySession({
 				const lesson = await generateStoryRecapLesson({
 					genreId: language.id,
 					storyParts,
-					languageFocuses: [readingStory.languageFocus],
 					wordTranslations: translations,
 					lookedUpWords: wordLookupsRef.current,
 				});

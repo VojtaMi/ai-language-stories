@@ -46,6 +46,7 @@ Return only valid JSON with exactly this shape:
 Rules:
 - themeSuggestion is only a broad creative direction. Make it different from both the completed story and recentStories. Do not provide a premise, protagonist, plot, goal, or obstacle.
 - Choose exactly one language focus from all evidence. An explicit practiceRequest is strong evidence. The completed story's focus is only one input.
+- Recap exercises test story comprehension and vocabulary, not grammar production or mastery of the completed story's language focus. Interpret attempts as evidence of reading comprehension; a first-try answer alone does not prove grammar mastery.
 - Use reinforce when the learner still needs the chosen focus. Use advance only when the evidence supports moving to a genuinely new next step.
 - complexityFromFeedback is already derived from the learner's difficulty rating. Use it as language.complexity, or one step simpler only when recap results, lookups, or questions show strong struggle. Never choose a harder complexity.
 - Provide one or two short ${genre.label} examples that best calibrate the completed story's difficulty. They may quote or lightly paraphrase storyParts, but must stay representative of the language the learner just read. Snippets demonstrate complexity only; the next author is forbidden to copy their content or vocabulary.

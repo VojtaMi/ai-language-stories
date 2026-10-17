@@ -115,13 +115,10 @@ function fillMissingWordSpec(
 			choices: ["correct", "wrong", "wrong"],
 		},
 		instructions:
-			"Use exactly three fill choices, using only words from the story. " +
-			"This exercise is the story's focus test: it must exercise the story's primary language focus stated below. " +
-			"Exactly one choice may complete the sentence; each wrong choice must be impossible in its place because of the focus, never merely a different true fact from the story. " +
-			"For a grammar focus, make the choices forms of the same word or phrase that differ only in the focus feature, such as the article, ending, case, or tense (for example den Käse | der Käse | dem Käse), so the sentence alone decides the answer without recalling the story's exact wording. " +
-			"When the choices differ in tense, the sentence must contain a time expression that allows only the answer's tense, such as yesterday or tomorrow in the story's language; words like then, afterwards, or in the evening do not decide tense, so add a deciding one to the story's sentence when needed. " +
-			"Every choice must be a real, correctly spelled form of the word: keep the stem exactly as in the answer and change only the tested part. " +
-			`Choose the fill sentence so its blanked \`answer\` is the exact ${genre.label} word or short phrase that realizes that focus. ` +
+			"Test understanding of a concrete story event, person, object, or place, using exactly three fill choices drawn from familiar story vocabulary. " +
+			"All three choices must fit the sentence grammatically; exactly one completed sentence must be true according to the story, and the other two must be clearly false. " +
+			"Include enough context to identify the event without memorizing the story's exact wording. Choose a different story detail from the story-question exercise. " +
+			"Use different content words or short phrases, never variants of the same word that test articles, endings, case, conjugation, or tense. Keep the sentence and choices as simple as the story. " +
 			"The `answer` is a single word or at most a short two-word phrase. " +
 			`The fill sentence must be one complete, natural ${genre.label} sentence containing the answer written exactly as in \`answer\` — the app carves the blank out of it itself, so write a normal sentence and do not pre-split it or omit the answer.`,
 		parse(value) {
@@ -149,7 +146,7 @@ function fillMissingWordSpec(
 				id: "fill-missing-word",
 				type: "fill-missing-word",
 				title: "Fill the missing word",
-				hint: "Choose the word that completes the sentence.",
+				hint: "Choose the word that fits the story.",
 				sentenceBeforeBlank: before,
 				sentenceAfterBlank: after,
 				answer,
@@ -208,18 +205,8 @@ function recapExerciseSpecs(genre: Language) {
 	];
 }
 
-/**
- * The fill-missing-word exercise is the deterministic focus test: it is always
- * the exercise that probes the story's primary language focus, so a finished
- * story yields a clean pass/fail on the exact concept. The blank itself is still
- * derived in code (see {@link fillMissingWordSpec} and `splitOnWord`); only the
- * choice of the focus-realizing sentence needs the model.
- */
-export const RECAP_FOCUS_EXERCISE_TYPE = "fill-missing-word" as const;
-
 /** Composes the recap generation prompt from each exercise type's own shape and rules. */
 export function buildStoryRecapPrompt(
-	primaryFocus?: string,
 	genre: Language = DEFAULT_LANGUAGE,
 ): string {
 	const specs = recapExerciseSpecs(genre);
@@ -227,13 +214,11 @@ export function buildStoryRecapPrompt(
 		exercises: specs.map((spec) => spec.shape),
 	});
 	const instructions = specs.map((spec) => spec.instructions).join(" ");
-	const focus = primaryFocus?.trim();
 	return (
-		`Create a tiny end-of-story ${genre.label} recap lesson for a beginner. ` +
+		`Create a tiny end-of-story ${genre.label} recap lesson for a beginner, focused on understanding the story and its useful vocabulary. ` +
 		"Return only valid JSON with this exact shape: " +
 		`${shape} ` +
 		`${instructions} ` +
-		(focus ? `Story's primary language focus: "${focus}". ` : "") +
 		"Do not include markdown, comments, explanations, trailing commas, or extra fields."
 	);
 }

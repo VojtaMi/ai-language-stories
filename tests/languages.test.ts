@@ -53,13 +53,19 @@ assert.match(germanPrompt, /capitalize every noun/i);
 assert.match(germanPrompt, /verb-second/i);
 
 const spanish = getLanguage("spanish");
-const spanishRecap = buildStoryRecapPrompt("present-tense actions", spanish);
+const spanishRecap = buildStoryRecapPrompt(spanish);
 assert.match(spanishRecap, /Spanish recap lesson/);
-assert.match(spanishRecap, /Exactly one choice may complete the sentence/);
-assert.match(spanishRecap, /differ only in the focus feature/);
 assert.match(
 	spanishRecap,
-	/time expression that allows only the answer's tense/,
+	/All three choices must fit the sentence grammatically/,
+);
+assert.match(
+	spanishRecap,
+	/exactly one completed sentence must be true according to the story/,
+);
+assert.match(
+	spanishRecap,
+	/never variants of the same word that test articles/,
 );
 assert.match(spanishRecap, /every other choice must be clearly false/);
 assert.equal(spanish.recapTitle, "Práctica breve");
@@ -74,7 +80,7 @@ const dutchPrompt = readingManuscriptMessages(
 assert.match(dutchPrompt, /beginner Dutch reading story/);
 assert.match(dutchPrompt, /de, het, and een/i);
 assert.match(dutchPrompt, /verb-second/i);
-const dutchRecap = buildStoryRecapPrompt("present-tense actions", dutch);
+const dutchRecap = buildStoryRecapPrompt(dutch);
 assert.match(dutchRecap, /Dutch recap lesson/);
 assert.equal(dutch.recapTitle, "Kleine oefening");
 assert.match(
@@ -92,7 +98,7 @@ const finnishPrompt = readingManuscriptMessages(
 assert.match(finnishPrompt, /beginner Finnish reading story/);
 assert.match(finnishPrompt, /articles or grammatical gender/i);
 assert.match(finnishPrompt, /vowel harmony/i);
-const finnishRecap = buildStoryRecapPrompt("present-tense actions", finnish);
+const finnishRecap = buildStoryRecapPrompt(finnish);
 assert.match(finnishRecap, /Finnish recap lesson/);
 assert.equal(finnish.recapTitle, "Pieni harjoitus");
 assert.match(

@@ -27,11 +27,7 @@ import type { TtsModelId } from "./ttsModel";
 
 export type { ChatMessage, ReadingStory, ReadingStoryPart };
 
-/**
- * Low reasoning lets the recap model check that only one choice fits and that
- * distractors are real words; it used up to ~800 tokens, mostly reasoning, so
- * this is the completion endpoint's maximum.
- */
+/** Output budget for the small structured recap lesson. */
 const STORY_RECAP_MAX_TOKENS = 1200;
 
 export async function fetchProviderAvailability(): Promise<ProviderAvailability> {
@@ -209,7 +205,6 @@ export async function finalizeReadingStoryEvidence(
 interface GenerateStoryRecapLessonInput {
 	genreId: LanguageId;
 	storyParts: string[];
-	languageFocuses: string[];
 	wordTranslations: Record<string, string>;
 	/** Words the learner tapped for help while reading, in first-tap order. */
 	lookedUpWords?: string[];
@@ -224,7 +219,7 @@ export async function generateStoryRecapLesson(
 		[
 			{
 				role: "system",
-				content: buildStoryRecapPrompt(input.languageFocuses[0], genre),
+				content: buildStoryRecapPrompt(genre),
 			},
 			{
 				role: "user",
@@ -233,9 +228,6 @@ export async function generateStoryRecapLesson(
 					input.storyParts
 						.map((part, index) => `Part ${index + 1}: ${part}`)
 						.join("\n\n"),
-					"",
-					"Language focuses:",
-					input.languageFocuses.join("\n"),
 					"",
 					"Available word translations:",
 					JSON.stringify(input.wordTranslations, null, 2),
@@ -252,7 +244,7 @@ export async function generateStoryRecapLesson(
 		model,
 		STORY_RECAP_MAX_TOKENS,
 		"json",
-		"low",
+		"none",
 	);
 	return parseStoryRecapLesson(text, genre);
 }
