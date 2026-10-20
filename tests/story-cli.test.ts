@@ -16,16 +16,28 @@ import {
 	parseStoryChainCliArgs,
 } from "../scripts/simulate-reading-story-chain.ts";
 import { DEFAULT_LEARNER_CONTEXT } from "../src/learnerState.ts";
-import { DEFAULT_TEXT_MODEL } from "../src/models.ts";
+import {
+	DEFAULT_STORY_GENERATION_PRESET_ID,
+	getStoryGenerationPreset,
+} from "../src/models.ts";
 
 const execFileAsync = promisify(execFile);
 
+// With no model chosen, the CLIs generate the way the app does by default.
+const defaultPreset = getStoryGenerationPreset(
+	DEFAULT_STORY_GENERATION_PRESET_ID,
+);
 const defaults = parseReadingStoryCliArgs([]);
-assert.equal(defaults.model, DEFAULT_TEXT_MODEL);
+assert.equal(defaults.model, defaultPreset.model);
 assert.equal(defaults.language, "esperanto");
 assert.equal(defaults.defaultLearner, false);
 assert.equal(defaults.learnerStatePath, undefined);
-assert.equal(defaults.reasoningEffort, undefined);
+assert.equal(defaults.reasoningEffort, defaultPreset.reasoningEffort);
+// An explicit model keeps the pipeline's own reasoning default.
+assert.equal(
+	parseReadingStoryCliArgs(["--model", "gpt-5.6-luna"]).reasoningEffort,
+	undefined,
+);
 
 const configured = parseReadingStoryCliArgs([
 	"--model",
@@ -135,7 +147,12 @@ console.log("checked story CLI: help needs no provider credentials");
 
 const chainDefaults = parseStoryChainCliArgs([]);
 assert.equal(chainDefaults.length, 5);
-assert.equal(chainDefaults.model, DEFAULT_TEXT_MODEL);
+assert.equal(chainDefaults.model, defaultPreset.model);
+assert.equal(chainDefaults.reasoningEffort, defaultPreset.reasoningEffort);
+assert.equal(
+	parseStoryChainCliArgs(["--model", "gpt-5.6-luna"]).reasoningEffort,
+	undefined,
+);
 assert.equal(chainDefaults.retries, 2);
 assert.equal(chainDefaults.failHandoffAt, undefined);
 assert.equal(chainDefaults.languageId, undefined);

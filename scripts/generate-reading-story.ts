@@ -16,7 +16,8 @@ import {
 	parseLearnerContext,
 } from "../src/learnerState.ts";
 import {
-	DEFAULT_TEXT_MODEL,
+	DEFAULT_STORY_GENERATION_PRESET_ID,
+	getStoryGenerationPreset,
 	TEXT_MODELS,
 	TEXT_REASONING_EFFORTS,
 	type TextModelId,
@@ -47,6 +48,9 @@ type StructuredCompletion = (request: {
 	reasoningEffort?: TextReasoningEffort;
 }) => Promise<string>;
 
+const DEFAULT_STORY_PRESET = getStoryGenerationPreset(
+	DEFAULT_STORY_GENERATION_PRESET_ID,
+);
 const languageIds = languages.map(({ id }) => id);
 
 const HELP = `Usage: npm run story:generate -- [options]
@@ -55,7 +59,7 @@ Generate one complete adaptively-sectioned reading story and print its JSON to s
 
 Options:
   --language <id>          Story language: ${languageIds.join("|")} (default: ${DEFAULT_LANGUAGE.id})
-  --model <id>             Text model (default: ${DEFAULT_TEXT_MODEL})
+  --model <id>             Text model (default: the app default, ${DEFAULT_STORY_PRESET.label})
   --learner-state <path>   Use and validate a custom learner-state JSON file
   --default-learner        Use the built-in default learner state
   --reasoning <effort>     OpenAI only: ${TEXT_REASONING_EFFORTS.join("|")}
@@ -72,8 +76,9 @@ export function parseReadingStoryCliArgs(
 		defaultLearner: false,
 		help: false,
 		language: DEFAULT_LANGUAGE.id,
-		model: DEFAULT_TEXT_MODEL,
+		model: DEFAULT_STORY_PRESET.model,
 	};
+	let modelWasSet = false;
 
 	for (let index = 0; index < rawArgs.length; index += 1) {
 		const argument = rawArgs[index];
@@ -96,6 +101,7 @@ export function parseReadingStoryCliArgs(
 				break;
 			}
 			case "--model": {
+				modelWasSet = true;
 				const value = requiredFlagValue(rawArgs, index, argument);
 				const model = TEXT_MODELS.find((candidate) => candidate.id === value);
 				if (!model) {
@@ -136,6 +142,10 @@ export function parseReadingStoryCliArgs(
 	}
 	if (options.reasoningEffort && !options.model.startsWith("gpt-")) {
 		throw new Error("--reasoning is supported only for OpenAI GPT models.");
+	}
+	// Without an explicit model, exercise what the app generates with by default.
+	if (!modelWasSet) {
+		options.reasoningEffort ??= DEFAULT_STORY_PRESET.reasoningEffort;
 	}
 	return options;
 }

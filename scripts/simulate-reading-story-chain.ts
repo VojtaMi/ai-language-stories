@@ -18,7 +18,8 @@ import type {
 } from "../src/learnerState.ts";
 import { mergeStoryMemory } from "../src/learnerState.ts";
 import {
-	DEFAULT_TEXT_MODEL,
+	DEFAULT_STORY_GENERATION_PRESET_ID,
+	getStoryGenerationPreset,
 	TEXT_MODELS,
 	TEXT_REASONING_EFFORTS,
 	type TextModelId,
@@ -106,6 +107,9 @@ export interface StoryChainScenarioStep {
 	afterStory?: ChainFeedback;
 }
 
+const DEFAULT_STORY_PRESET = getStoryGenerationPreset(
+	DEFAULT_STORY_GENERATION_PRESET_ID,
+);
 const HELP = `Usage: npm run story:chain -- --length <n> [options]
 
 Generate a chain of reading stories through the production prose and next-story
@@ -118,7 +122,7 @@ Options:
   --scenario <path>       JSON timeline of before-story changes and after-story evidence
   --fail-handoff-at <n>   Simulate a malformed handoff after story n
   --ai-log <path>         Write full provider calls to a separate NDJSON trace
-  --model <id>            Prose model (default: ${DEFAULT_TEXT_MODEL})
+  --model <id>            Prose model (default: the app default, ${DEFAULT_STORY_PRESET.label})
   --reasoning <effort>    OpenAI prose only: ${TEXT_REASONING_EFFORTS.join("|")}
   --retries <n>           Retry a rejected story up to n times (default: 2)
   --learner-state <path>  Use and validate a custom learner-state JSON file
@@ -145,9 +149,10 @@ export function parseStoryChainCliArgs(
 		help: false,
 		json: false,
 		length: 5,
-		model: DEFAULT_TEXT_MODEL,
+		model: DEFAULT_STORY_PRESET.model,
 		retries: 2,
 	};
+	let modelWasSet = false;
 	let lengthWasSet = false;
 	for (let index = 0; index < rawArgs.length; index += 1) {
 		const argument = rawArgs[index];
@@ -221,6 +226,7 @@ export function parseStoryChainCliArgs(
 				index += 1;
 				break;
 			case "--model": {
+				modelWasSet = true;
 				const value = requiredFlagValue(rawArgs, index, argument);
 				const model = TEXT_MODELS.find((candidate) => candidate.id === value);
 				if (!model) throw new Error(`Unknown model "${value}".`);
@@ -256,6 +262,10 @@ export function parseStoryChainCliArgs(
 	}
 	if (options.reasoningEffort && !options.model.startsWith("gpt-")) {
 		throw new Error("--reasoning is supported only for OpenAI GPT models.");
+	}
+	// Without an explicit model, exercise what the app generates with by default.
+	if (!modelWasSet) {
+		options.reasoningEffort ??= DEFAULT_STORY_PRESET.reasoningEffort;
 	}
 	return options;
 }
