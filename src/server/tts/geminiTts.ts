@@ -27,6 +27,23 @@ const GEMINI_TTS_MAX_ATTEMPTS = 3;
 
 class RetryableGeminiTtsError extends Error {}
 
+/** A 429: the quota is spent, so retrying within seconds only spends more of it. */
+class GeminiTtsRateLimitError extends Error {}
+
+/** Gemini's 429 body names the exhausted quota, which the status alone does not. */
+async function geminiRateLimitError(
+	response: Response,
+	message: string,
+): Promise<GeminiTtsRateLimitError> {
+	const body = (await response.json().catch(() => null)) as {
+		error?: { message?: string };
+	} | null;
+	const detail = body?.error?.message?.split("\n")[0];
+	return new GeminiTtsRateLimitError(
+		detail ? `${message}: ${detail}` : message,
+	);
+}
+
 export async function synthesizeGeminiSpeech({
 	geminiModel,
 	input,
@@ -104,7 +121,10 @@ export async function synthesizeGeminiSpeech({
 
 					if (!response.ok) {
 						const message = `Gemini TTS request failed: ${response.status} ${response.statusText}`;
-						if (response.status === 429 || response.status >= 500) {
+						if (response.status === 429) {
+							throw await geminiRateLimitError(response, message);
+						}
+						if (response.status >= 500) {
 							throw new RetryableGeminiTtsError(message);
 						}
 						throw new Error(message);

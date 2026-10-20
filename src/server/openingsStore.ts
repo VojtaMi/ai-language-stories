@@ -45,7 +45,6 @@ import {
 	storyBundlePath,
 } from "./storyBundleStore";
 import { readFinishEvidence } from "./storyFinishEvidenceStore";
-import { prewarmWordAudio } from "./wordAudioStore";
 
 const storyImagesDir = join(process.cwd(), "story-images");
 
@@ -294,18 +293,6 @@ async function createPreparedReadingOpening(
 		}),
 		prewarmReadingTranslations(openai, genre, readingStory),
 	]);
-	// Started only after the narration so it never competes with it for the TTS
-	// provider, and not awaited: the story is ready to read without it.
-	void prewarmWordAudio(
-		openai,
-		genre.id,
-		storyWords(
-			readingStory.parts.map((part) => part.text),
-			readingStory.properNames,
-			genre.id,
-		),
-		ttsModel,
-	);
 	return {
 		id,
 		genreId: genre.id,
