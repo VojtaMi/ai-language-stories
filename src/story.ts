@@ -7,6 +7,7 @@ import type { LearnerPreferences, RecentStoryMemory } from "./learnerState";
 import type { TextModelId, TextReasoningEffort } from "./models";
 import type { NextStoryBrief } from "./nextStoryBrief";
 import type { DialogueLine, StoryCharacter } from "./reading_story/dialogue";
+import { checkReadingManuscriptLogic } from "./reading_story/logicCheck";
 import { generateReadingManuscript } from "./reading_story/manuscript";
 import { proofreadReadingManuscript } from "./reading_story/proofread";
 import {
@@ -27,7 +28,7 @@ export interface ReadingStoryPart {
 }
 
 /**
- * A complete reading story. Plot review, prose authoring, proofreading, semantic splitting,
+ * A complete reading story. Plot review, prose authoring, logic check, proofreading, semantic splitting,
  * and visual planning all finish before it exists, so the session only moves a
  * cursor through `parts` and never generates prose again.
  */
@@ -139,9 +140,14 @@ export async function generateReadingStory(
 		preferences,
 		options.reasoningEffort ?? "low",
 	);
-	const manuscript = await proofreadReadingManuscript(
+	const checkedManuscript = await checkReadingManuscriptLogic(
 		complete,
 		draftManuscript,
+		genre,
+	);
+	const manuscript = await proofreadReadingManuscript(
+		complete,
+		checkedManuscript,
 		genre,
 	);
 	const parts = await splitReadingManuscript(complete, manuscript, genre);

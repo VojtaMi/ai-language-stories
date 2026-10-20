@@ -72,7 +72,8 @@ export const STORY_GENERATION_PRESETS = [
 	},
 	// Compared on 27 manuscripts (eo/de/la, 2026-10-14): judged quality on par
 	// with GPT 5.6 Luna at under half the cost, slightly weaker on grammar,
-	// which the proofreading stage covers.
+	// which the proofreading stage covers. On 8 German stories (2026-10-20) its
+	// prose had about half GPT 5.6 Luna's judged major logic issues.
 	{
 		id: "luna6-low",
 		label: "GPT 6 Luna · Low",
@@ -89,7 +90,7 @@ export const STORY_GENERATION_PRESETS = [
 export type StoryGenerationPreset = (typeof STORY_GENERATION_PRESETS)[number];
 export type StoryGenerationPresetId = StoryGenerationPreset["id"];
 export const DEFAULT_STORY_GENERATION_PRESET_ID: StoryGenerationPresetId =
-	"luna-low";
+	"luna6-low";
 
 export function findStoryGenerationPreset(
 	id: string | null | undefined,

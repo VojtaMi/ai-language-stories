@@ -19,6 +19,7 @@ import {
 	readingSectionDialogue,
 	type StoryCharacter,
 } from "../src/reading_story/dialogue.ts";
+import { READING_STORY_LOGIC_MODEL } from "../src/reading_story/logicCheck.ts";
 import {
 	generateReadingManuscript,
 	parseReadingManuscript,
@@ -824,6 +825,11 @@ console.log("checked reading story: visual planning follows settled parts");
 
 // --- Thin orchestration ------------------------------------------------------
 
+// The logic check fixes a stranger thanked by a name nobody said.
+const logicOriginal = "Ŝi dankis lin.";
+const logicCorrected = "Ŝi dankis la konduktoron.";
+const logicCheckedText = manuscriptText.replace(logicOriginal, logicCorrected);
+
 const pipelineCalls: Array<{
 	maxTokens: number;
 	messages: ChatMessage[];
@@ -840,10 +846,20 @@ const generated = await generateReadingStory(
 		if (system.includes("finished manuscript")) {
 			return JSON.stringify(manuscript);
 		}
-		if (system.includes("proofreader")) {
+		if (system.includes("careful story editor")) {
 			assert.equal(
 				JSON.parse(messages[1]?.content ?? "{}").text,
 				manuscript.text,
+			);
+			return JSON.stringify({
+				corrections: [{ original: logicOriginal, corrected: logicCorrected }],
+			});
+		}
+		if (system.includes("proofreader")) {
+			// Proofreading sees the logic check's edits, so it also checks them.
+			assert.equal(
+				JSON.parse(messages[1]?.content ?? "{}").text,
+				logicCheckedText,
 			);
 			return '{"corrections":[]}';
 		}
@@ -878,12 +894,17 @@ assert.deepEqual(
 		{ model: READING_STORY_PLOT_MODEL, reasoningEffort: "low" },
 		{ model: READING_STORY_PLOT_MODEL, reasoningEffort: "low" },
 		{ reasoningEffort: "medium" },
+		{ model: READING_STORY_LOGIC_MODEL, reasoningEffort: "medium" },
 		{ model: READING_STORY_PROOFREAD_MODEL, reasoningEffort: "medium" },
 		{ model: DEFAULT_TEXT_MODEL },
 		{ model: READING_STORY_VISUAL_MODEL, reasoningEffort: "none" },
 	],
 );
-console.log("checked reading story: staged pipeline has six explicit calls");
+assert.equal(
+	generated.parts.map((part) => part.text).join(" "),
+	logicCheckedText,
+);
+console.log("checked reading story: staged pipeline has seven explicit calls");
 
 // --- Proofreading --------------------------------------------------------------
 
@@ -929,6 +950,9 @@ const failedProofread = await generateReadingStory(
 		if (system.includes("reviewing a short story draft")) return "OK";
 		if (system.includes("finished manuscript"))
 			return JSON.stringify(manuscript);
+		if (system.includes("careful story editor")) {
+			throw new Error("provider down");
+		}
 		if (system.includes("proofreader")) throw new Error("provider down");
 		if (system.includes("presentation parts")) {
 			return '{"breakAfterSentence":[4,8]}';
@@ -950,6 +974,9 @@ assert.equal(
 );
 console.log(
 	"checked reading story: proofreading applies only local corrections",
+);
+console.log(
+	"checked reading story: a failed logic check or proofread keeps the manuscript",
 );
 
 // --- Final story validation and dynamic media cadence ------------------------
