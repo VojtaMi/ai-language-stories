@@ -18,8 +18,13 @@ const BUTTON_GLYPH: Record<OpeningAudioStatus, string> = {
 	error: "!",
 };
 
+/** How far narration steps back on resuming, so the learner regains context. */
+const RESUME_REWIND_SECONDS = 1;
+
 interface OpeningAudioControlProps {
 	audioUrl: string | null;
+	/** Pauses narration while true and resumes it afterwards if it was playing. */
+	interrupted?: boolean;
 	isLoading?: boolean;
 	hasError?: boolean;
 	onRetry?: () => void;
@@ -28,6 +33,7 @@ interface OpeningAudioControlProps {
 
 export function OpeningAudioControl({
 	audioUrl,
+	interrupted = false,
 	isLoading = false,
 	hasError = false,
 	onRetry,
@@ -38,6 +44,7 @@ export function OpeningAudioControl({
 	const [currentTime, setCurrentTime] = useState(0);
 	const [duration, setDuration] = useState(0);
 	const resumeAfterSeekRef = useRef(false);
+	const resumeAfterInterruptRef = useRef(false);
 
 	useEffect(() => {
 		onPositionChange?.(currentTime, duration);
@@ -46,6 +53,7 @@ export function OpeningAudioControl({
 	useEffect(() => {
 		setCurrentTime(0);
 		setDuration(0);
+		resumeAfterInterruptRef.current = false;
 
 		if (!audioUrl) {
 			setStatus("idle");
@@ -94,9 +102,31 @@ export function OpeningAudioControl({
 		};
 	}, [audioUrl]);
 
+	useEffect(() => {
+		const audio = audioRef.current;
+		if (!audio) return;
+		if (interrupted) {
+			if (audio.paused) return;
+			resumeAfterInterruptRef.current = true;
+			audio.pause();
+			setStatus("idle");
+			return;
+		}
+		if (!resumeAfterInterruptRef.current) return;
+		resumeAfterInterruptRef.current = false;
+		audio.currentTime = Math.max(0, audio.currentTime - RESUME_REWIND_SECONDS);
+		setStatus("loading");
+		audio.play().then(
+			() => setStatus("playing"),
+			() => setStatus("idle"),
+		);
+	}, [interrupted]);
+
 	const toggle = useCallback(async () => {
 		const audio = audioRef.current;
 		if (!audio) return;
+		// The learner took over playback; don't also resume when they close it.
+		resumeAfterInterruptRef.current = false;
 
 		if (status === "playing") {
 			audio.pause();

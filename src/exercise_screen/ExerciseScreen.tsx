@@ -135,6 +135,10 @@ export default function ExerciseScreen({
 	const [wordAudioUrls, setWordAudioUrls] = useState<Record<string, string>>(
 		{},
 	);
+	// One channel for word pronunciation: each click supersedes the last, so a
+	// slow response for an earlier word never plays over a later one.
+	const wordAudioRef = useRef<HTMLAudioElement | null>(null);
+	const wordAudioRequestRef = useRef(0);
 	const [selectedPart, setSelectedPart] = useState<{
 		storyId: string | null;
 		target: string | null;
@@ -225,7 +229,12 @@ export default function ExerciseScreen({
 	useEffect(() => {
 		if (!popover) return;
 		const handler = (e: MouseEvent) => {
-			if (!popoverRef.current?.contains(e.target as Node)) {
+			// Another word's click replaces the popover itself; closing it first
+			// would briefly resume the narration between the two words.
+			if (
+				!popoverRef.current?.contains(e.target as Node) &&
+				!(e.target as Element).closest?.(".story__word")
+			) {
 				setPopover(null);
 			}
 		};
@@ -247,7 +256,21 @@ export default function ExerciseScreen({
 		};
 	}, [popover]);
 
+	const stopWordAudio = useCallback(() => {
+		wordAudioRequestRef.current++;
+		wordAudioRef.current?.pause();
+		speechSynthesis.cancel();
+	}, []);
+
+	// Closing the popover (or leaving the story) silences its word.
+	useEffect(() => {
+		if (!popover) stopWordAudio();
+	}, [popover, stopWordAudio]);
+	useEffect(() => stopWordAudio, [stopWordAudio]);
+
 	const playWordAudio = (word: string, audioUrl?: string) => {
+		stopWordAudio();
+		const request = wordAudioRequestRef.current;
 		const normalizedWord = word.toLowerCase();
 		const existingUrl = audioUrl ?? wordAudioUrls[normalizedWord];
 		(existingUrl
@@ -262,9 +285,13 @@ export default function ExerciseScreen({
 				if (!existingUrl) {
 					setWordAudioUrls((prev) => ({ ...prev, [normalizedWord]: url }));
 				}
-				return new Audio(url).play();
+				if (request !== wordAudioRequestRef.current) return;
+				wordAudioRef.current ??= new Audio();
+				wordAudioRef.current.src = url;
+				return wordAudioRef.current.play();
 			})
 			.catch(() => {
+				if (request !== wordAudioRequestRef.current) return;
 				const utt = new SpeechSynthesisUtterance(word);
 				utt.lang = language.locale;
 				speechSynthesis.cancel();
@@ -383,6 +410,7 @@ export default function ExerciseScreen({
 					</p>
 					<OpeningAudioControl
 						audioUrl={activeAudioUrl}
+						interrupted={popover !== null}
 						onPositionChange={updateNarrationPosition}
 						isLoading={!reviewing && openingAudioLoading}
 						hasError={!reviewing && openingAudioError}
