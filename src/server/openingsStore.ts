@@ -45,6 +45,7 @@ import {
 	storyBundlePath,
 } from "./storyBundleStore";
 import { readFinishEvidence } from "./storyFinishEvidenceStore";
+import { queueWordAudioPrewarm } from "./wordAudioStore";
 
 const storyImagesDir = join(process.cwd(), "story-images");
 
@@ -274,6 +275,14 @@ async function createPreparedReadingOpening(
 	const title = readingStory.title;
 	const id = createBundleId(genre.id, title, randomUUID());
 	const narrationVoice = pickRandomNarrationVoice();
+	// Starts alongside the first section's media but is not awaited: the story
+	// is ready to read without it, and its batches are paced in the background.
+	void queueWordAudioPrewarm(
+		openai,
+		genre.id,
+		wordsBySection(readingStory, genre.id),
+		ttsModel,
+	);
 	const [backgroundImage, openingAudio, wordTranslations] = await Promise.all([
 		createBackgroundImage(
 			openai,
@@ -308,6 +317,18 @@ async function createPreparedReadingOpening(
 		createdAt: new Date().toISOString(),
 		basedOnStoryId,
 	};
+}
+
+/** Each story word under the section where it first appears. */
+function wordsBySection(story: ReadingStory, genreId: LanguageId): string[][] {
+	const seen = new Set<string>();
+	return story.parts.map((part) =>
+		storyWords([part.text], story.properNames, genreId).filter((word) => {
+			if (seen.has(word)) return false;
+			seen.add(word);
+			return true;
+		}),
+	);
 }
 
 async function prewarmReadingTranslations(

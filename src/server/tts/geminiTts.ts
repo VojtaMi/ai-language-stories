@@ -30,6 +30,10 @@ class RetryableGeminiTtsError extends Error {}
 /** A 429: the quota is spent, so retrying within seconds only spends more of it. */
 class GeminiTtsRateLimitError extends Error {}
 
+export function isGeminiTtsRateLimit(error: unknown): boolean {
+	return error instanceof GeminiTtsRateLimitError;
+}
+
 /** Gemini's 429 body names the exhausted quota, which the status alone does not. */
 async function geminiRateLimitError(
 	response: Response,

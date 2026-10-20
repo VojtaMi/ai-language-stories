@@ -6,9 +6,16 @@ import {
 	type LanguageId,
 	languageTtsInstructions,
 } from "../languages";
-import { type TtsModelId, ttsModelSpeechOptions } from "../ttsModel";
+import {
+	type TtsModelId,
+	ttsModelInfo,
+	ttsModelSpeechOptions,
+} from "../ttsModel";
 import { tts } from "./tts";
+import { isGeminiTtsRateLimit } from "./tts/geminiTts";
+import { splitWordRecording } from "./tts/splitWords";
 import type { SynthesizedSpeech } from "./tts/types";
+import { pcmToWav, readWav } from "./tts/wav";
 
 const wordAudioDir = join(process.cwd(), "word-audio");
 
@@ -93,6 +100,10 @@ export async function getOrCreateWordAudio(
 	}
 
 	const key = `${genreId}/${word}`;
+	// A click during story preparation waits for the batch that is already
+	// generating this word instead of paying for it twice.
+	const batched = await batchedWordAudio.get(key);
+	if (batched) return batched;
 	const pending = pendingWordAudio.get(key);
 	if (pending) return pending;
 	beforeProviderCall?.();
@@ -136,4 +147,144 @@ export async function readWordAudio(
 		audio: await readFile(join(wordAudioDir, genreId, cached.filename)),
 		mimeType: wordAudioMimeType(cached.filename),
 	};
+}
+
+/** Words a running batch will produce, resolving to their URL or null if it fails. */
+const batchedWordAudio = new Map<string, Promise<string | null>>();
+
+/** A section rarely has more new words; past this a batch is split, as long lists drift. */
+const MAX_WORD_BATCH = 40;
+/**
+ * Background batches stay at ≤6 requests a minute, leaving the TTS quota to
+ * the narration and clicks a learner is waiting for.
+ */
+const WORD_BATCH_SPACING_MS = 10_000;
+
+/** One queue for every story being prepared, so their requests never add up. */
+let wordBatchQueue: Promise<void> = Promise.resolve();
+
+/**
+ * Generates a story's word pronunciations ahead of clicks: one recording per
+ * section, in reading order, cut into words at the pauses between them. Only
+ * Gemini returns PCM that can be cut; other providers keep on-click audio.
+ */
+export function queueWordAudioPrewarm(
+	openai: OpenAI,
+	genreId: LanguageId,
+	sectionWords: string[][],
+	ttsModel: TtsModelId,
+): Promise<void> {
+	if (
+		ttsModelInfo(ttsModel).provider !== "gemini" ||
+		!process.env.GEMINI_API_KEY?.trim()
+	) {
+		return wordBatchQueue;
+	}
+	wordBatchQueue = wordBatchQueue
+		.then(() => prewarmSectionWords(openai, genreId, sectionWords, ttsModel))
+		.catch((err) => console.warn("[word-audio] BATCH prewarm failed.", err));
+	return wordBatchQueue;
+}
+
+async function prewarmSectionWords(
+	openai: OpenAI,
+	genreId: LanguageId,
+	sectionWords: string[][],
+	ttsModel: TtsModelId,
+) {
+	const batches: string[][] = [];
+	for (const words of sectionWords) {
+		const missing: string[] = [];
+		for (const word of words) {
+			if (
+				wordFilePattern.test(`${word}.wav`) &&
+				!(await findCachedWordAudio(genreId, allWordAudioFilenames(word)))
+			) {
+				missing.push(word);
+			}
+		}
+		const parts = Math.ceil(missing.length / MAX_WORD_BATCH);
+		for (let i = 0; i < parts; i++) {
+			const size = Math.ceil(missing.length / parts);
+			batches.push(missing.slice(i * size, (i + 1) * size));
+		}
+	}
+
+	for (const [index, words] of batches.entries()) {
+		if (index > 0) await sleep(WORD_BATCH_SPACING_MS);
+		const keys = words.map((word) => `${genreId}/${word}`);
+		const run = synthesizeWordBatch(openai, genreId, words, ttsModel);
+		words.forEach((_, i) => {
+			batchedWordAudio.set(
+				keys[i],
+				run.then(
+					(urls) => urls?.[i] ?? null,
+					() => null,
+				),
+			);
+		});
+		try {
+			await run;
+		} catch (err) {
+			if (isGeminiTtsRateLimit(err)) {
+				console.warn(
+					`[word-audio] BATCH ${genreId}: rate limited, leaving the rest to clicks.`,
+					err instanceof Error ? err.message : err,
+				);
+				return;
+			}
+			console.warn(`[word-audio] BATCH ${genreId} failed.`, err);
+		} finally {
+			for (const key of keys) batchedWordAudio.delete(key);
+		}
+	}
+}
+
+async function synthesizeWordBatch(
+	openai: OpenAI,
+	genreId: LanguageId,
+	words: string[],
+	ttsModel: TtsModelId,
+): Promise<string[] | null> {
+	const genre = getLanguage(genreId);
+	console.log(`[word-audio] BATCH ${genreId}: ${words.length} words`);
+	// One word per line, as its own sentence, so each is read in isolation.
+	const speech = await tts({
+		openai,
+		text: words
+			.map((word) => `${word[0].toUpperCase()}${word.slice(1)}.`)
+			.join("\n"),
+		...ttsModelSpeechOptions(ttsModel),
+		instructions: [
+			`Each line is one separate single ${genre.label} word. Pronounce each word clearly and slowly, in isolation, as if teaching a language learner.`,
+			"Say every word with the same calm, finished intonation it would have if it were the only word — not like an item in a list.",
+			"Leave a full pause of about one second of silence after each word. Read nothing except the words.",
+			languageTtsInstructions(genre),
+		].join(" "),
+	});
+	const recording = readWav(speech.audio);
+	const clips =
+		recording &&
+		splitWordRecording(recording.pcm, recording.sampleRate, words.length);
+	if (!recording || !clips) {
+		console.warn(
+			`[word-audio] BATCH ${genreId}: the recording did not split into ${words.length} words; they stay on-click.`,
+		);
+		return null;
+	}
+	await mkdir(join(wordAudioDir, genreId), { recursive: true });
+	await Promise.all(
+		clips.map((clip, i) =>
+			writeFile(
+				join(wordAudioDir, genreId, `${words[i]}.wav`),
+				pcmToWav(clip, recording.sampleRate),
+			),
+		),
+	);
+	const version = Date.now();
+	return words.map((word) => wordAudioUrl(genreId, word, version));
+}
+
+function sleep(ms: number) {
+	return new Promise((resolve) => setTimeout(resolve, ms));
 }
