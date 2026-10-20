@@ -104,6 +104,48 @@ export async function getOrCreateWordAudio(
 	return request;
 }
 
+const PREWARM_CONCURRENCY = 3;
+
+/**
+ * Generates pronunciation audio for a story's words before the learner can
+ * click them, a few at a time so it never floods the TTS provider. Words are
+ * taken in order, so earlier sections are ready first.
+ */
+export async function prewarmWordAudio(
+	openai: OpenAI,
+	genreId: LanguageId,
+	words: string[],
+	ttsModel: TtsModelId,
+): Promise<void> {
+	const missing: string[] = [];
+	for (const word of words) {
+		if (!wordFilePattern.test(`${word}.mp3`)) continue;
+		if (!(await findCachedWordAudio(genreId, allWordAudioFilenames(word)))) {
+			missing.push(word);
+		}
+	}
+	if (missing.length === 0) return;
+	console.log(`[word-audio] PREWARM ${genreId}: ${missing.length} words`);
+
+	let next = 0;
+	let failed = 0;
+	const worker = async () => {
+		while (next < missing.length) {
+			const word = missing[next++];
+			try {
+				await getOrCreateWordAudio(openai, genreId, word, ttsModel);
+			} catch (err) {
+				failed++;
+				console.warn(`[word-audio] PREWARM failed for ${word}.`, err);
+			}
+		}
+	};
+	await Promise.all(Array.from({ length: PREWARM_CONCURRENCY }, worker));
+	console.log(
+		`[word-audio] PREWARM ${genreId} done: ${missing.length - failed}/${missing.length}`,
+	);
+}
+
 export async function regenerateWordAudio(
 	openai: OpenAI,
 	genreId: LanguageId,
