@@ -733,6 +733,10 @@ body {
 	pointer-events: auto;
 }
 
+.story__word-popover--hint {
+	pointer-events: none;
+}
+
 .story__word-popover__ask {
 	background: none;
 	border: 1px solid var(--story-border);

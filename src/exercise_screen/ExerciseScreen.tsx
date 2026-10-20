@@ -23,6 +23,16 @@ import { StoryRecapView } from "./story/StoryRecapView";
 import "./story/storyPractice.css";
 import type { StoryPhase, StorySegment } from "./types";
 
+/** Hover shows a word's translation after this pause, so sweeping the pointer across text stays quiet. */
+const HOVER_HINT_DELAY_MS = 300;
+/** A hover this long means the learner read the translation, so it counts as a lookup. */
+const HOVER_LOOKUP_DELAY_MS = 1000;
+
+/** Only a real mouse pointer hovers; touch keeps tap-for-everything. */
+function canHover(): boolean {
+	return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+}
+
 const WORD_PATTERN = /(\p{L}+(?:[-’']\p{L}+)*|[^\p{L}]+)/gu;
 
 /** The sentence of `passage` in which `token` appears, for tutor context. */
@@ -43,6 +53,18 @@ interface WordPopover {
 	isName: boolean;
 	x: number;
 	y: number;
+}
+
+/** The translation-only tooltip shown on hover or keyboard focus. */
+interface WordHint {
+	translation: string;
+	x: number;
+	y: number;
+}
+
+function wordAnchor(element: HTMLElement): { x: number; y: number } {
+	const rect = element.getBoundingClientRect();
+	return { x: rect.left + rect.width / 2, y: rect.top };
 }
 
 interface ExerciseScreenProps {
@@ -131,6 +153,11 @@ export default function ExerciseScreen({
 		text: string;
 	} | null>(null);
 	const [popover, setPopover] = useState<WordPopover | null>(null);
+	const [wordHint, setWordHint] = useState<WordHint | null>(null);
+	const hoverTimersRef = useRef<number[]>([]);
+	// Whether the current hover already logged its word, so a click on it after
+	// a long hover is not counted as a second lookup.
+	const hoverLoggedRef = useRef(false);
 	const [regenerating, setRegenerating] = useState(false);
 	const [wordAudioUrls, setWordAudioUrls] = useState<Record<string, string>>(
 		{},
@@ -299,28 +326,77 @@ export default function ExerciseScreen({
 			});
 	};
 
+	const clearWordHover = useCallback(() => {
+		for (const timer of hoverTimersRef.current) window.clearTimeout(timer);
+		hoverTimersRef.current = [];
+		setWordHint(null);
+	}, []);
+	useEffect(() => clearWordHover, [clearWordHover]);
+
+	// The hint is pinned to viewport coordinates, like the popover.
+	useEffect(() => {
+		if (!wordHint) return;
+		window.addEventListener("scroll", clearWordHover, { passive: true });
+		return () => window.removeEventListener("scroll", clearWordHover);
+	}, [wordHint, clearWordHover]);
+
+	const logWordLookup = (token: string, isName: boolean) => {
+		// Word lookups only happen while reading, so every lookup here belongs to
+		// this story — scope it so the story's baseline (not the global cursor)
+		// folds it and no other story can consume it.
+		void logLearnerWordClick(language.id, token, storyId ?? undefined);
+		if (!isName) onWordLookup(token);
+	};
+
+	const handleWordPointerEnter = (
+		token: string,
+		translation: string,
+		isName: boolean,
+		e: React.PointerEvent<HTMLButtonElement>,
+	) => {
+		if (e.pointerType !== "mouse" || !canHover() || popover) return;
+		clearWordHover();
+		hoverLoggedRef.current = false;
+		const anchor = wordAnchor(e.currentTarget);
+		hoverTimersRef.current = [
+			window.setTimeout(
+				() => setWordHint({ translation, ...anchor }),
+				HOVER_HINT_DELAY_MS,
+			),
+			window.setTimeout(() => {
+				hoverLoggedRef.current = true;
+				logWordLookup(token, isName);
+			}, HOVER_LOOKUP_DELAY_MS),
+		];
+	};
+
+	const handleWordFocus = (
+		translation: string,
+		e: React.FocusEvent<HTMLButtonElement>,
+	) => {
+		if (popover || !e.currentTarget.matches(":focus-visible")) return;
+		setWordHint({ translation, ...wordAnchor(e.currentTarget) });
+	};
+
 	const handleWordClick = (
 		token: string,
 		translation: string,
 		isName: boolean,
 		e: React.MouseEvent<HTMLButtonElement>,
 	) => {
-		// Word popovers only appear while reading, so every lookup here belongs to
-		// this story — scope it so the story's baseline (not the global cursor)
-		// folds it and no other story can consume it.
-		void logLearnerWordClick(language.id, token, storyId ?? undefined);
-		if (!isName) onWordLookup(token);
+		clearWordHover();
+		const loggedByHover = hoverLoggedRef.current;
+		hoverLoggedRef.current = false;
+		if (!loggedByHover) logWordLookup(token, isName);
 		playWordAudio(token);
 
-		const rect = e.currentTarget.getBoundingClientRect();
 		setPopover({
 			word: token.toLowerCase(),
 			token,
 			passage: activeText ?? "",
 			translation,
 			isName,
-			x: rect.left + rect.width / 2,
-			y: rect.top,
+			...wordAnchor(e.currentTarget),
 		});
 	};
 
@@ -398,6 +474,12 @@ export default function ExerciseScreen({
 									onClick={(e) =>
 										handleWordClick(token, translation, isName, e)
 									}
+									onPointerEnter={(e) =>
+										handleWordPointerEnter(token, translation, isName, e)
+									}
+									onPointerLeave={clearWordHover}
+									onFocus={(e) => handleWordFocus(translation, e)}
+									onBlur={clearWordHover}
 								>
 									{token}
 								</button>
@@ -473,6 +555,16 @@ export default function ExerciseScreen({
 			)}
 
 			{phase === "loading" && <StoryLoading />}
+
+			{wordHint && !popover && (
+				<div
+					role="tooltip"
+					className="story__word-popover story__word-popover--hint"
+					style={{ left: wordHint.x, top: wordHint.y }}
+				>
+					{wordHint.translation}
+				</div>
+			)}
 
 			{popover && (
 				<div
