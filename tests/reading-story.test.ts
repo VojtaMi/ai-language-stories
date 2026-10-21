@@ -596,6 +596,54 @@ assert.notEqual(twoMen.get("Toma"), "Charon", "Never the narrator's voice.");
 assert.notEqual(twoMen.get("Toma"), twoMen.get("Niko"));
 assert.equal(new Set(twoMen.values()).size, 3);
 
+const fiveBoys = assignCharacterVoices(
+	["A", "B", "C", "D", "E"].map((name) => ({
+		name,
+		voiceType: "boy" as const,
+	})),
+	"Puck",
+);
+assert.equal(
+	fiveBoys.get("E"),
+	"Kore",
+	"A type out of voices falls back to a related type, not any voice.",
+);
+
+const sisters = [
+	{ name: "Ana", voiceType: "woman" },
+	{ name: "Eva", voiceType: "woman" },
+] as StoryCharacter[];
+const sistersParts = [
+	{ text: "«Saluton», diras Ana. «Saluton», diras Eva." },
+	{ text: "«Ĝis», diras Eva." },
+];
+const sistersDialogue = [
+	{ speaker: "Ana", delivery: "warm" },
+	{ speaker: "Eva", delivery: "warm" },
+	{ speaker: "Eva", delivery: "sad" },
+];
+const evaVoices = [1, 2].map(
+	(partIndex) =>
+		dialogueTurns(
+			sistersParts[partIndex - 1].text,
+			guillemets,
+			readingSectionDialogue(
+				sistersParts,
+				sisters,
+				sistersDialogue,
+				partIndex,
+				guillemets,
+			) ?? { characters: [], lines: [] },
+			"Iapetus",
+			"",
+		).findLast((item) => item.speaker !== "Narrator")?.voice,
+);
+assert.equal(
+	evaVoices[0],
+	evaVoices[1],
+	"A character keeps one voice when an earlier one stays silent.",
+);
+
 const turns = dialogueTurns(
 	voicedParts[2].text,
 	guillemets,
@@ -614,7 +662,7 @@ assert.deepEqual(
 );
 assert.match(
 	turns[1].style,
-	/^Speak Esperanto\. Speak as a young boy\. Delivery: eager\.$/,
+	/^Speak Esperanto\. Speak as a young boy, a child: light, bright, childlike\. Delivery: eager\.$/,
 );
 assert.equal(turns[0].style, "Speak Esperanto.");
 assert.throws(() =>

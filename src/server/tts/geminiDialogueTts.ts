@@ -21,24 +21,37 @@ const MAX_RETRY_WAIT_MS = 20_000;
 
 /**
  * Prebuilt Gemini voices per character type, best fit first. Several per type
- * so two characters of one type, and the narrator, never share a voice.
+ * so two characters of one type, and the narrator, never share a voice. No
+ * prebuilt voice is a child's, so boys borrow the high youthful voices, as
+ * animation casts them; every male voice is too low to pass for a child.
  */
 const CHARACTER_VOICES: Record<CharacterVoiceType, string[]> = {
 	woman: ["Kore", "Aoede", "Despina", "Erinome", "Callirrhoe"],
 	man: ["Charon", "Orus", "Achird", "Umbriel", "Alnilam"],
 	girl: ["Leda", "Laomedeia", "Autonoe", "Zephyr"],
-	boy: ["Puck", "Fenrir", "Sadachbia"],
-	"older woman": ["Gacrux", "Vindemiatrix", "Achernar", "Sulafat"],
+	boy: ["Leda", "Zephyr", "Laomedeia", "Autonoe"],
+	"older woman": ["Gacrux", "Vindemiatrix", "Sulafat"],
 	"older man": ["Algenib", "Sadaltager", "Rasalgethi", "Schedar"],
 };
 
+/** Where a type looks once its own voices are taken, before any voice at all. */
+const FALLBACK_VOICE_TYPES: Record<CharacterVoiceType, CharacterVoiceType[]> = {
+	woman: ["older woman", "girl"],
+	man: ["older man"],
+	girl: ["boy", "woman"],
+	boy: ["girl", "woman"],
+	"older woman": ["woman"],
+	"older man": ["man"],
+};
+
+/** The voice alone cannot carry age, so the style spells it out. */
 const VOICE_TYPE_STYLE: Record<CharacterVoiceType, string> = {
 	woman: "an adult woman",
 	man: "an adult man",
-	girl: "a young girl",
-	boy: "a young boy",
-	"older woman": "an older woman",
-	"older man": "an older man",
+	girl: "a young girl, a child: light, bright, childlike",
+	boy: "a young boy, a child: light, bright, childlike",
+	"older woman": "an elderly woman: warm, a little slower, slightly aged",
+	"older man": "an elderly man: a little slower, slightly aged",
 };
 
 export interface SpeechTurn {
@@ -53,8 +66,8 @@ export interface SpeechTurn {
 
 /**
  * Gives each character a voice by type, never the narrator's and never one
- * another character already has. Characters arrive in story order, so the same
- * cast always gets the same voices in every section.
+ * another character already has. The whole cast arrives in story order, so
+ * every character keeps one voice in every section.
  */
 export function assignCharacterVoices(
 	characters: SectionDialogue["characters"],
@@ -65,7 +78,9 @@ export function assignCharacterVoices(
 	for (const character of characters) {
 		const pool = CHARACTER_VOICES[character.voiceType];
 		const voice =
-			pool.find((candidate) => !used.has(candidate)) ??
+			[character.voiceType, ...FALLBACK_VOICE_TYPES[character.voiceType]]
+				.flatMap((type) => CHARACTER_VOICES[type])
+				.find((candidate) => !used.has(candidate)) ??
 			Object.values(CHARACTER_VOICES)
 				.flat()
 				.find((candidate) => !used.has(candidate)) ??

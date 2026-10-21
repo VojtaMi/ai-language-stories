@@ -158,6 +158,7 @@ export function parseDialogueAttribution(
 
 /** The attribution one section's narration needs: its own lines, in order. */
 export interface SectionDialogue {
+	/** The whole story's cast, so voices are assigned the same in every section. */
 	characters: StoryCharacter[];
 	lines: DialogueLine[];
 }
@@ -186,10 +187,5 @@ export function readingSectionDialogue(
 		first,
 		first + findQuotations(part.text, quotes).length,
 	);
-	if (!lines.length) return undefined;
-	const speakers = new Set(lines.map((line) => line.speaker));
-	return {
-		characters: characters.filter((character) => speakers.has(character.name)),
-		lines,
-	};
+	return lines.length ? { characters, lines } : undefined;
 }
