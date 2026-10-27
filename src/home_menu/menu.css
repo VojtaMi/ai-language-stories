@@ -90,7 +90,7 @@
 		transform 0.15s ease;
 }
 
-.lesson-hero__start:hover {
+.lesson-hero__start:hover:not(:disabled) {
 	background: #91e6af;
 	border-color: #91e6af;
 	transform: translateY(-2px);
@@ -101,7 +101,7 @@
 	color: #f4fbef;
 }
 
-.lesson-hero__start--secondary:hover {
+.lesson-hero__start--secondary:hover:not(:disabled) {
 	background: rgba(244, 251, 239, 0.14);
 	border-color: rgba(244, 251, 239, 0.84);
 }
@@ -110,11 +110,6 @@
 .lesson-hero__start--making {
 	cursor: progress;
 	animation: lesson-hero-making 1.6s ease-in-out infinite;
-}
-
-.lesson-hero__start--making:hover {
-	background: transparent;
-	transform: none;
 }
 
 @keyframes lesson-hero-making {
