@@ -151,7 +151,12 @@ export async function generateReadingStory(
 		genre,
 	);
 	const parts = await splitReadingManuscript(complete, manuscript, genre);
-	const visualPlan = await generateReadingVisualPlan(complete, parts, genre);
+	const visualPlan = await generateReadingVisualPlan(
+		complete,
+		parts,
+		manuscript.cast,
+		genre,
+	);
 	return {
 		title: manuscript.title,
 		storySummary: storyPlot,

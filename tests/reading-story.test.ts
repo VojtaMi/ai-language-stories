@@ -120,6 +120,7 @@ const manuscript = {
 	text: manuscriptText,
 	characters: [],
 	dialogue: [],
+	cast: [{ name: "Mara", identity: "a young woman travelling alone" }],
 };
 
 function finalStoryJson(partCount = 5, imageCount = Math.ceil(partCount / 2)) {
@@ -326,6 +327,14 @@ assert.deepEqual(
 	manuscript,
 );
 assert.throws(() => parseReadingManuscript('{"title":"Only a title"}', genre));
+assert.throws(
+	() =>
+		parseReadingManuscript(
+			JSON.stringify({ ...manuscript, cast: [{ name: "Mara" }] }),
+			genre,
+		),
+	/cast member needs a name and an identity/,
+);
 
 let manuscriptAttempts = 0;
 const repairedManuscript = await generateReadingManuscript(
@@ -457,6 +466,10 @@ const characters = [
 	{ name: "Tomas", voiceType: "boy" },
 	{ name: "Bruno", voiceType: "older man" },
 ];
+const cast = [
+	{ name: "Lina", identity: "a young woman" },
+	{ name: "Tomas", identity: "Lina's younger brother, a boy" },
+];
 const dialogue = [
 	{ speaker: "Lina", delivery: "curious" },
 	{ speaker: "Tomas", delivery: "eager" },
@@ -535,6 +548,7 @@ const repairedDialogue = await generateReadingManuscript(
 				text: dialogueText,
 				characters,
 				dialogue: dialogue.slice(0, 2),
+				cast,
 			});
 		}
 		dialogueRepairPrompt = messages[0].content;
@@ -544,6 +558,7 @@ const repairedDialogue = await generateReadingManuscript(
 			text: dialogueText,
 			characters,
 			dialogue,
+			cast,
 		});
 	},
 	genre,
@@ -779,7 +794,7 @@ console.log("checked reading story: highlighting follows measured segments");
 
 // --- Shared visual core and per-pair instructions ----------------------------
 
-const visualMessages = readingVisualPlanMessages(parts);
+const visualMessages = readingVisualPlanMessages(parts, manuscript.cast);
 assert.match(visualMessages[0].content, /Shared visual context/i);
 assert.match(visualMessages[0].content, /exactly 2 imagePrompts/i);
 assert.match(
@@ -796,7 +811,8 @@ const visualContext = JSON.parse(
 	visualMessages[1].content.split("\n\n").at(-1) ?? "",
 );
 assert.equal(visualContext.imageSections.length, 2);
-assert.deepEqual(Object.keys(visualContext), ["imageSections"]);
+assert.deepEqual(Object.keys(visualContext), ["cast", "imageSections"]);
+assert.deepEqual(visualContext.cast, manuscript.cast);
 assert.deepEqual(
 	visualContext.imageSections.map(
 		(section: { number: number; sourceParts: number[] }) => ({
@@ -837,21 +853,25 @@ assert.throws(() =>
 );
 
 const visualRepairCalls: ChatMessage[][] = [];
-const repairedVisualPlan = await generateReadingVisualPlan(async (messages) => {
-	visualRepairCalls.push(messages);
-	if (visualRepairCalls.length === 1) {
+const repairedVisualPlan = await generateReadingVisualPlan(
+	async (messages) => {
+		visualRepairCalls.push(messages);
+		if (visualRepairCalls.length === 1) {
+			return JSON.stringify({
+				visualContext: "Stable people and station.",
+				properNames: ["Mara"],
+				imagePrompts: ["One.", "Two.", "Three."],
+			});
+		}
 		return JSON.stringify({
 			visualContext: "Stable people and station.",
 			properNames: ["Mara"],
-			imagePrompts: ["One.", "Two.", "Three."],
+			imagePrompts: ["Parts one and two.", "Part three."],
 		});
-	}
-	return JSON.stringify({
-		visualContext: "Stable people and station.",
-		properNames: ["Mara"],
-		imagePrompts: ["Parts one and two.", "Part three."],
-	});
-}, parts);
+	},
+	parts,
+	manuscript.cast,
+);
 assert.deepEqual(repairedVisualPlan.imagePrompts, [
 	"Parts one and two.",
 	"Part three.",

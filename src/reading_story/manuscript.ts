@@ -28,6 +28,14 @@ export interface ReadingStoryManuscript {
 	characters: StoryCharacter[];
 	/** One entry per quotation in `text`, in order. */
 	dialogue: DialogueLine[];
+	/** Everyone who appears, speaking or not, with who they are, for the illustrator. */
+	cast: CastMember[];
+}
+
+export interface CastMember {
+	name: string;
+	/** Short English description, e.g. "Anna's neighbour, an older man". */
+	identity: string;
 }
 
 function manuscriptShape(genre: Language) {
@@ -45,6 +53,12 @@ function manuscriptShape(genre: Language) {
 			{
 				speaker: "the characters name who says this quotation",
 				delivery: `short English acting note for the ${open}…${close} quotation`,
+			},
+		],
+		cast: [
+			{
+				name: "everyone who appears, speaking or not, named as the text names them",
+				identity: "short English description of who they are",
 			},
 		],
 	};
@@ -91,6 +105,7 @@ Story:
 - Treat storyPlot as the complete causal throughline. Preserve its characters, established causes, actions, resolution, and ending.
 - Apply the explicit preferences in the authoring data as tone and audience constraints. Do not assume an adult or child audience unless those preferences state one.
 - Expand its language and concrete scene detail, but do not replace its premise or invent another problem, mechanism, character, important object, or solution.
+- When a character first appears, say who they are in a few words, such as their role, their relation to another character, or what kind of animal they are, unless the plot keeps it secret on purpose. A reader, and the illustrator, sees only the prose.
 - Keep locations, movements, time, and object ownership explicit and consistent. Establish anything important before it affects the solution.
 - Every sentence must advance the action, clarify the situation, or pay off an earlier setup.
 - Apply lengthGuidance. Do not create sections, numbered moments, image instructions, visual metadata, a summary, or commentary.
@@ -105,6 +120,10 @@ Dialogue:
 - List each speaking character once in characters, named exactly as the text names them. Choose the closest voiceType by apparent gender and age, also for an animal or creature. The narrator is not a character.
 - Give dialogue exactly one entry per ${open}…${close} quotation, in text order. speaker is a characters name; delivery is a short English acting note, such as "soft, hopeful", that fits the scene and the narration.
 
+Cast:
+- List in cast everyone who appears in the story, speaking or not, including animals and creatures, once each, named as the text names them or by their role if unnamed.
+- identity says in a few English words who they are, as the story means it: a person or what kind of animal, approximate age, and their role or relation to the others, such as "Anna's neighbour, an older man" or "a small brown dog".
+
 Return only valid JSON matching exactly:
 ${JSON.stringify(manuscriptShape(language))}`;
 }
@@ -114,7 +133,7 @@ function manuscriptRepairPrompt(genre: Language) {
 	return `Repair the supplied output into valid JSON matching exactly:
 ${JSON.stringify(manuscriptShape(genre))}
 
-Preserve the complete ${genre.label} prose. Fix only invalid JSON, a missing concise title, a missing text wrapper, or the dialogue attribution: dialogue needs exactly one entry per ${open}…${close} quotation in text order, each speaker listed in characters. If ${open} and ${close} enclose something nobody says aloud, remove those two marks; if a mark is missing or unpaired, add or remove that one mark. Do not divide, summarize, continue, or otherwise rewrite valid prose. Return JSON only.`;
+Preserve the complete ${genre.label} prose. Fix only invalid JSON, a missing concise title, a missing text wrapper, a missing cast, or the dialogue attribution: dialogue needs exactly one entry per ${open}…${close} quotation in text order, each speaker listed in characters. If ${open} and ${close} enclose something nobody says aloud, remove those two marks; if a mark is missing or unpaired, add or remove that one mark. Do not divide, summarize, continue, or otherwise rewrite valid prose. Return JSON only.`;
 }
 
 export function readingManuscriptMessages(
@@ -189,7 +208,29 @@ export function parseReadingManuscript(
 			manuscript.characters,
 			manuscript.dialogue,
 		),
+		cast: parseCast(manuscript.cast),
 	};
+}
+
+function parseCast(raw: unknown): CastMember[] {
+	if (
+		!Array.isArray(raw) ||
+		raw.some(
+			(member) =>
+				!member ||
+				typeof member !== "object" ||
+				typeof member.name !== "string" ||
+				!member.name.trim() ||
+				typeof member.identity !== "string" ||
+				!member.identity.trim(),
+		)
+	) {
+		throw new Error("Every cast member needs a name and an identity.");
+	}
+	return raw.map((member) => ({
+		name: member.name.trim(),
+		identity: member.identity.trim(),
+	}));
 }
 
 export async function generateReadingManuscript(
