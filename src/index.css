@@ -737,6 +737,26 @@ body {
 	pointer-events: none;
 }
 
+.story__word-popover--with-actions {
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
+}
+
+.story__word-popover__actions {
+	position: absolute;
+	left: 100%;
+	top: -1px;
+	bottom: -1px;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 0 8px 0 0;
+	background: var(--surface);
+	border: 1px solid var(--story-border);
+	border-left: none;
+	border-radius: 0 6px 6px 0;
+}
+
 .story__word-popover__ask {
 	background: none;
 	border: 1px solid var(--story-border);

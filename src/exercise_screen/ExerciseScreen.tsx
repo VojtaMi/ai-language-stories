@@ -570,31 +570,33 @@ export default function ExerciseScreen({
 				<div
 					ref={popoverRef}
 					role="status"
-					className="story__word-popover"
+					className={`story__word-popover${popover.isName ? "" : " story__word-popover--with-actions"}`}
 					style={{ left: popover.x, top: popover.y }}
 				>
 					<span>{popover.translation}</span>
+					{/* Hangs off the right edge, so the translation stays exactly where
+					    the hover hint showed it. */}
 					{!popover.isName && (
-						<button
-							type="button"
-							className="story__word-popover__ask"
-							title={`Ask ${language.label} Bot about this word`}
-							aria-label={`Ask ${language.label} Bot about ${popover.token}`}
-							onClick={askTutorAboutWord}
-						>
-							Ask
-						</button>
-					)}
-					{!popover.isName && (
-						<button
-							type="button"
-							className="story__word-popover__regenerate"
-							title="Regenerate translation"
-							disabled={regenerating}
-							onClick={handleRegenerate}
-						>
-							↺
-						</button>
+						<span className="story__word-popover__actions">
+							<button
+								type="button"
+								className="story__word-popover__ask"
+								title={`Ask ${language.label} Bot about this word`}
+								aria-label={`Ask ${language.label} Bot about ${popover.token}`}
+								onClick={askTutorAboutWord}
+							>
+								Ask
+							</button>
+							<button
+								type="button"
+								className="story__word-popover__regenerate"
+								title="Regenerate translation"
+								disabled={regenerating}
+								onClick={handleRegenerate}
+							>
+								↺
+							</button>
+						</span>
 					)}
 				</div>
 			)}
