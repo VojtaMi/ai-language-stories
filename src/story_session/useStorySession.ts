@@ -107,6 +107,7 @@ function readingMediaSection(
 	return {
 		storyId,
 		partIndex,
+		partCount: story.parts.length,
 		narrationVoice,
 		text: part.text,
 		imagePrompt: readingImagePrompt(story, partIndex),

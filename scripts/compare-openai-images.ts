@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { languages } from "../src/languages.ts";
+import { readingImageIndex } from "../src/reading_story/visualPlan.ts";
 import { buildStoryBackgroundPrompt } from "../src/server/images/prompts.ts";
 import type { ReadingStory } from "../src/story.ts";
 
@@ -47,7 +48,10 @@ const genre = languages.find((candidate) => candidate.id === story.genreId);
 if (!genre) {
 	throw new Error(`Unknown or missing genreId in ${storyPath}.`);
 }
-const imagePromptIndex = Math.floor((sectionNumber - 1) / 2);
+const imagePromptIndex = readingImageIndex(
+	sectionNumber,
+	story.readingStory?.parts.length ?? story.parts?.length ?? sectionNumber,
+);
 const storyText =
 	story.readingStory?.imagePrompts[imagePromptIndex]?.trim() ??
 	story.imagePrompts?.[imagePromptIndex]?.trim() ??

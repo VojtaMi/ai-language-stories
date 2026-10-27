@@ -40,6 +40,8 @@ import {
 	generateReadingVisualPlan,
 	parseReadingVisualPlan,
 	READING_STORY_VISUAL_MODEL,
+	readingImageIndex,
+	readingImageParts,
 	readingVisualPlanMessages,
 } from "../src/reading_story/visualPlan.ts";
 import {
@@ -123,7 +125,10 @@ const manuscript = {
 	cast: [{ name: "Mara", identity: "a young woman travelling alone" }],
 };
 
-function finalStoryJson(partCount = 5, imageCount = Math.ceil(partCount / 2)) {
+function finalStoryJson(
+	partCount = 5,
+	imageCount = readingImageParts(partCount).length,
+) {
 	return JSON.stringify({
 		title: manuscript.title,
 		storySummary: "Mara finds the correct train.",
@@ -811,27 +816,57 @@ const visualContext = JSON.parse(
 	visualMessages[1].content.split("\n\n").at(-1) ?? "",
 );
 assert.equal(visualContext.imageSections.length, 2);
-assert.deepEqual(Object.keys(visualContext), ["cast", "imageSections"]);
+assert.deepEqual(Object.keys(visualContext), [
+	"cast",
+	"storyParts",
+	"imageSections",
+]);
 assert.deepEqual(visualContext.cast, manuscript.cast);
 assert.deepEqual(
+	visualContext.storyParts,
+	parts.map((part) => part.text),
+);
+assert.deepEqual(
 	visualContext.imageSections.map(
-		(section: { number: number; sourceParts: number[] }) => ({
+		(section: {
+			number: number;
+			sourceParts: number[];
+			shownPart: number;
+		}) => ({
 			number: section.number,
 			sourceParts: section.sourceParts,
+			shownPart: section.shownPart,
 		}),
 	),
 	[
-		{ number: 1, sourceParts: [1, 2] },
-		{ number: 2, sourceParts: [3] },
+		{ number: 1, sourceParts: [1, 2], shownPart: 1 },
+		{ number: 2, sourceParts: [3], shownPart: 3 },
 	],
 );
-assert.equal(
-	visualContext.imageSections[0].text,
-	`${parts[0].text}\n\n${parts[1].text}`,
-);
+// Each image shows only the first part of its pair, never a blend of both.
+assert.equal(visualContext.imageSections[0].text, parts[0].text);
 assert.deepEqual(buildReadingImageSections([parts[0]]), [
-	{ number: 1, sourceParts: [1], text: parts[0].text },
+	{ number: 1, sourceParts: [1], shownPart: 1, text: parts[0].text },
 ]);
+
+// Odd parts and the last part get an image; the others keep the one before.
+assert.deepEqual(readingImageParts(4), [1, 3, 4]);
+assert.deepEqual(readingImageParts(5), [1, 3, 5]);
+assert.deepEqual(readingImageParts(1), [1]);
+assert.deepEqual(
+	[1, 2, 3, 4].map((part) => readingImageIndex(part, 4)),
+	[0, 0, 1, 2],
+);
+assert.deepEqual(
+	buildReadingImageSections(
+		["One.", "Two.", "Three.", "Four."].map((text) => ({ text })),
+	).map(({ sourceParts, shownPart }) => ({ sourceParts, shownPart })),
+	[
+		{ sourceParts: [1, 2], shownPart: 1 },
+		{ sourceParts: [3], shownPart: 3 },
+		{ sourceParts: [4], shownPart: 4 },
+	],
+);
 
 const visualPlan = parseReadingVisualPlan(
 	JSON.stringify({
@@ -1203,6 +1238,7 @@ function section(partIndex: number): ReadingMediaSection {
 	return {
 		storyId: "kvieta-mateno--1234abcd",
 		partIndex,
+		partCount: story.parts.length,
 		narrationVoice: voice,
 		text: story.parts[partIndex - 1].text,
 		imagePrompt: readingImagePrompt(story, partIndex),
@@ -1250,6 +1286,14 @@ assert.equal(
 	"/api/story-images/x/section_5.webp",
 );
 assert.equal(imageCalls, 1);
-console.log("checked reading media: one provider call per odd section");
+// The last part always gets its own image, even when it is even.
+assert.equal(
+	await media.requestBackground({ ...section(4), partCount: 4 }),
+	await media.requestBackground({ ...section(4), partCount: 4 }),
+);
+assert.equal(imageCalls, 2);
+console.log(
+	"checked reading media: one provider call per odd section and the last",
+);
 
 console.log("\nreading story checks passed");

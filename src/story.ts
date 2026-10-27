@@ -14,7 +14,11 @@ import {
 	READING_STORY_MAX_PARTS,
 	splitReadingManuscript,
 } from "./reading_story/split";
-import { generateReadingVisualPlan } from "./reading_story/visualPlan";
+import {
+	generateReadingVisualPlan,
+	readingImageIndex,
+	readingImageParts,
+} from "./reading_story/visualPlan";
 import { prepareReadingStoryPlot } from "./readingStoryPlot";
 
 export type ChatMessage = {
@@ -91,16 +95,16 @@ export function readingVisualContext(story: ReadingStory): string {
 }
 
 /**
- * The image prompt for the section at `partIndex` (1-based). One image covers a
- * pair of parts, so parts 1-2 share prompt 0, 3-4 prompt 1, 5-6 prompt 2. This
- * is the dominant action the image should depict; the stable character identity
+ * The image prompt for the section at `partIndex` (1-based): the image of the
+ * nearest image part at or before it (see {@link readingImageParts}). This is
+ * the dominant action the image should depict; the stable character identity
  * is supplied separately by {@link readingVisualContext}.
  */
 export function readingImagePrompt(
 	story: ReadingStory,
 	partIndex: number,
 ): string {
-	return story.imagePrompts[Math.floor((partIndex - 1) / 2)];
+	return story.imagePrompts[readingImageIndex(partIndex, story.parts.length)];
 }
 
 /** Compact English context retained with the finished story for audit and finalization. */
@@ -206,7 +210,7 @@ export function parseReadingStory(raw: string): ReadingStory {
 	);
 	const properNames = requiredStringArray(parsed.properNames, "properNames");
 	const imagePrompts = requiredStringArray(parsed.imagePrompts, "imagePrompts");
-	const imageCount = Math.ceil(parsed.parts.length / 2);
+	const imageCount = readingImageParts(parsed.parts.length).length;
 	if (imagePrompts.length !== imageCount) {
 		throw new Error(
 			`The reading story has ${imagePrompts.length} image prompts instead of ${imageCount}.`,

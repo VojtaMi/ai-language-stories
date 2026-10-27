@@ -8,6 +8,8 @@ import { shouldGenerateReadingBackground } from "./background";
 export interface ReadingMediaSection {
 	storyId: string;
 	partIndex: number;
+	/** How many parts the story has, which decides where images change. */
+	partCount: number;
 	narrationVoice: NarrationVoiceId;
 	text: string;
 	/** The dominant-action description the background image depicts; narration still uses `text`. */
@@ -99,7 +101,9 @@ export function createReadingMedia(generators: ReadingMediaGenerators) {
 		requestBackground(
 			section: ReadingMediaSection,
 		): Promise<StoryBackgroundImage | null> {
-			if (!shouldGenerateReadingBackground(section.partIndex)) {
+			if (
+				!shouldGenerateReadingBackground(section.partIndex, section.partCount)
+			) {
 				return Promise.resolve(null);
 			}
 			return share(

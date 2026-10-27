@@ -20,6 +20,7 @@ import {
 } from "../narrationVoice";
 import { readingSectionDialogue } from "../reading_story/dialogue";
 import { READING_STORY_MAX_PARTS } from "../reading_story/split";
+import { readingImageParts } from "../reading_story/visualPlan";
 import {
 	type ChatMessage,
 	generateReadingStory,
@@ -490,7 +491,8 @@ function isCompleteReadingStory(story: unknown): story is ReadingStory {
 		parts.every((part) => Boolean(part?.text?.trim())) &&
 		Array.isArray(readingStory.properNames) &&
 		Array.isArray(readingStory.imagePrompts) &&
-		readingStory.imagePrompts.length === Math.ceil(parts.length / 2) &&
+		readingStory.imagePrompts.length ===
+			readingImageParts(parts.length).length &&
 		readingStory.imagePrompts.every((prompt) => Boolean(prompt?.trim()))
 	);
 }

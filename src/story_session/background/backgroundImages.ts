@@ -1,5 +1,6 @@
 import type { ChatMessage } from "../../ai";
 import { type Language, languageHeroImageUrl } from "../../languages";
+import { isReadingImagePart } from "../../reading_story/visualPlan";
 import type { StoryBackgroundImage } from "../../storyBackground";
 
 export interface StoryBackgroundFields {
@@ -45,11 +46,13 @@ export function shouldGenerateNextBackground(storyMessages: ChatMessage[]) {
 /**
  * Which reading sections get their own background image. A reading story knows
  * all its sections up front, so the cadence is a property of the section number
- * rather than of how much history has accumulated: sections 1, 3 and 5 get an
- * image, and the even sections keep the one before them on screen.
+ * rather than of how much history has accumulated; see {@link readingImageParts}.
  */
-export function shouldGenerateReadingBackground(partIndex: number) {
-	return partIndex % 2 === 1;
+export function shouldGenerateReadingBackground(
+	partIndex: number,
+	partCount: number,
+) {
+	return isReadingImagePart(partIndex, partCount);
 }
 
 const SECTION_IMAGE_PATTERN = /section_(\d+)\.[a-z0-9]+$/i;
