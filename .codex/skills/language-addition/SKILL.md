@@ -64,9 +64,14 @@ Convert the source PNGs into the served AVIF files:
 npm run images:optimize
 ```
 
-The script preserves dimensions, keeps bot alpha, and writes the AVIF files to
-`public/images/`. Inspect the actual source and output files; a bot that only
-looks transparent but has an opaque background will render as a square.
+The script keeps the poster's dimensions, shrinks the bot to 512×512 (it is
+only shown at avatar size), keeps bot alpha, and writes the AVIF files to
+`public/images/`. Expect roughly 200–300 KiB per poster and under 70 KiB per
+bot; a much larger output means the source is not what it should be. Keep the
+compression in the script rather than pre-shrinking the source PNGs, so the
+sources stay usable if the display sizes change. Inspect the actual source and
+output files; a bot that only looks transparent but has an opaque background
+will render as a square.
 
 ## Finish and verify
 
