@@ -358,7 +358,7 @@ body {
 .language-chat-toolbar {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
+	justify-content: flex-end;
 	gap: 0.75rem;
 	padding: 0.75rem 1.1rem;
 	border-bottom: 1px solid rgba(120, 96, 58, 0.14);
@@ -388,39 +388,6 @@ body {
 	border-radius: 8px;
 	background: rgba(122, 96, 56, 0.08);
 	cursor: pointer;
-}
-
-.language-chat-toggle {
-	display: inline-flex;
-	padding: 0.18rem;
-	border: 1px solid rgba(120, 96, 58, 0.2);
-	border-radius: 9px;
-	background: rgba(122, 96, 56, 0.08);
-}
-
-.language-chat-toggle button {
-	font: inherit;
-	font-size: 0.78rem;
-	font-weight: 700;
-	border: 0;
-	border-radius: 7px;
-	background: transparent;
-	color: #8c7c61;
-	cursor: pointer;
-	transition:
-		background 0.15s ease,
-		color 0.15s ease;
-}
-
-.language-chat-toggle button {
-	min-width: 2.4rem;
-	padding: 0.36rem 0.55rem;
-}
-
-.language-chat-toggle button[data-active="true"] {
-	background: #5f7d3a;
-	color: #f7f1e3;
-	box-shadow: 0 1px 4px rgba(60, 80, 30, 0.3);
 }
 
 .language-chat-log {

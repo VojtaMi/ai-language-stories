@@ -6,7 +6,6 @@ import {
 	useState,
 } from "react";
 import { askLanguageTutor, type LanguageTutorChatMessage } from "../../ai";
-import { ESPERANTO_KEY_MAP } from "../../esperantoKeyboard";
 import { type Language, languageBotImageUrl } from "../../languages";
 import {
 	readSelectedChatModel,
@@ -31,7 +30,6 @@ interface LanguageChatModalProps {
 }
 
 type ChatEntry = LanguageTutorChatMessage & { id: string };
-type InputMode = "english" | "target";
 
 export function LanguageChatModal({
 	language,
@@ -47,7 +45,6 @@ export function LanguageChatModal({
 }: LanguageChatModalProps) {
 	const [messages, setMessages] = useState<ChatEntry[]>([]);
 	const [input, setInput] = useState("");
-	const [inputMode, setInputMode] = useState<InputMode>("english");
 	const [model, setModel] = useState<ChatModelId>(readSelectedChatModel);
 	const [isSending, setIsSending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -156,31 +153,7 @@ export function LanguageChatModal({
 		if (event.key === "Enter" && !event.shiftKey) {
 			event.preventDefault();
 			void submitQuestion(input);
-			return;
 		}
-
-		if (
-			inputMode !== "target" ||
-			language.id !== "esperanto" ||
-			event.metaKey ||
-			event.ctrlKey ||
-			event.altKey
-		) {
-			return;
-		}
-
-		const mapped = ESPERANTO_KEY_MAP[event.key];
-		if (!mapped) return;
-		event.preventDefault();
-		const inputEl = event.currentTarget;
-		const start = inputEl.selectionStart;
-		const end = inputEl.selectionEnd;
-		const next = `${input.slice(0, start)}${mapped}${input.slice(end)}`;
-		setInput(next);
-		window.requestAnimationFrame(() => {
-			inputEl.selectionStart = start + mapped.length;
-			inputEl.selectionEnd = start + mapped.length;
-		});
 	}
 
 	return (
@@ -234,22 +207,6 @@ export function LanguageChatModal({
 					</header>
 
 					<div className="language-chat-toolbar">
-						<div className="language-chat-toggle">
-							<button
-								type="button"
-								data-active={inputMode === "english"}
-								onClick={() => setInputMode("english")}
-							>
-								EN
-							</button>
-							<button
-								type="button"
-								data-active={inputMode === "target"}
-								onClick={() => setInputMode("target")}
-							>
-								{language.shortCode}
-							</button>
-						</div>
 						<label className="language-chat-model">
 							<span className="language-chat-model-label">Model</span>
 							<select
@@ -309,11 +266,7 @@ export function LanguageChatModal({
 							onChange={(event) => setInput(event.target.value)}
 							onKeyDown={handleKeyDown}
 							rows={3}
-							placeholder={
-								inputMode === "target"
-									? `Ask in ${language.label}...`
-									: "Ask your question..."
-							}
+							placeholder="Ask your question..."
 						/>
 						<button type="submit" disabled={!input.trim() || isSending}>
 							Send
