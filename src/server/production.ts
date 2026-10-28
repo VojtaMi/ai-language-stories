@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import {
 	createServer,
 	type IncomingMessage,
@@ -41,7 +41,7 @@ import {
 	listPreparedReadingOpenings,
 	listStoryImages,
 	prepareMissingReadingOpenings,
-	readStoryImage,
+	storyImageFile,
 } from "./openingsStore";
 import {
 	getClientIdentifier,
@@ -189,25 +189,54 @@ const mimeTypes: Record<string, string> = {
 	".ttf": "font/ttf",
 };
 
+/**
+ * Lets a browser that already holds this file revalidate with a bodiless 304
+ * instead of downloading it again. Returns true when the 304 has been sent.
+ */
+function answeredNotModified(
+	req: IncomingMessage,
+	res: ServerResponse,
+	modifiedAt: Date,
+) {
+	res.setHeader("Last-Modified", modifiedAt.toUTCString());
+	const since = Date.parse(req.headers["if-modified-since"] ?? "");
+	// HTTP dates carry whole seconds, so compare at that precision.
+	if (
+		Number.isNaN(since) ||
+		Math.floor(modifiedAt.getTime() / 1000) * 1000 > since
+	) {
+		return false;
+	}
+	res.statusCode = 304;
+	res.end();
+	return true;
+}
+
 async function serveStatic(
-	res: Parameters<typeof sendJson>[0],
+	req: IncomingMessage,
+	res: ServerResponse,
 	urlPath: string,
 ) {
 	const filePath = join(distDir, urlPath === "/" ? "index.html" : urlPath);
 	try {
+		const { mtime } = await stat(filePath);
 		const content = await readFile(filePath);
 		const mime = mimeTypes[extname(filePath)] ?? "application/octet-stream";
 		res.setHeader("Content-Type", mime);
 		// Vite content-hashes everything under /assets/; the HTML that names
-		// those hashes must always be revalidated.
+		// those hashes must always be revalidated. Language posters and bots
+		// keep their names across redesigns, so they get a day, not forever.
 		res.setHeader(
 			"Cache-Control",
 			urlPath.startsWith("/assets/")
 				? "public, max-age=31536000, immutable"
 				: mime.startsWith("text/html")
 					? "no-cache"
-					: "public, max-age=3600",
+					: urlPath.startsWith("/images/")
+						? "public, max-age=86400"
+						: "public, max-age=3600",
 		);
+		if (answeredNotModified(req, res, mtime)) return;
 		res.statusCode = 200;
 		res.end(content);
 	} catch {
@@ -390,10 +419,15 @@ async function handleRequest(
 				return;
 			}
 			try {
-				const file = await readStoryImage(relativePath);
-				res.statusCode = 200;
+				const filePath = await storyImageFile(relativePath);
+				const { mtime } = await stat(filePath);
 				res.setHeader("Content-Type", imageMimeType(relativePath));
-				res.setHeader("Cache-Control", "no-store");
+				// Section filenames are reused within a story, so the browser keeps
+				// its copy but asks each time whether the file has changed.
+				res.setHeader("Cache-Control", "private, no-cache");
+				if (answeredNotModified(req, res, mtime)) return;
+				const file = await readFile(filePath);
+				res.statusCode = 200;
 				res.end(file);
 			} catch {
 				sendJson(res, 404, { error: "Image not found." });
@@ -545,7 +579,7 @@ async function handleRequest(
 			return;
 		}
 
-		await serveStatic(res, pathname);
+		await serveStatic(req, res, pathname);
 	} catch (err) {
 		if (err instanceof HttpError) {
 			for (const [name, value] of Object.entries(err.details.headers ?? {})) {

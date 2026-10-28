@@ -34,7 +34,11 @@ import type { StoryBackgroundImage } from "../storyBackground";
 import { storyWords } from "../storyVocabulary";
 import { DEFAULT_TTS_MODEL, type TtsModelId } from "../ttsModel";
 import { completeStructuredAi, translateWords } from "./aiService";
-import { buildStoryBackgroundPrompt, generateStoryImage } from "./images";
+import {
+	buildStoryBackgroundPrompt,
+	type GeneratedStoryImage,
+	generateStoryImage,
+} from "./images";
 import { readLearnerContext } from "./learnerProfileStore";
 import { learnerReadingOpeningsDir } from "./learnerScope";
 import { createOpeningAudio } from "./storyAudioStore";
@@ -207,13 +211,18 @@ export async function consumePreparedReadingOpening(
 	return opening;
 }
 
-export async function readStoryImage(relativePath: string) {
+/** Where a story image lives on disk: its story bundle, or the generated images. */
+export async function storyImageFile(relativePath: string) {
 	const [storyId, filename] = relativePath.split("/");
 	if (storyId && filename) {
 		const bundled = bundledImagesPath(storyId, filename);
-		if (await pathExists(bundled)) return readFile(bundled);
+		if (await pathExists(bundled)) return bundled;
 	}
-	return readFile(join(storyImagesDir, relativePath));
+	return join(storyImagesDir, relativePath);
+}
+
+export async function readStoryImage(relativePath: string) {
+	return readFile(await storyImageFile(relativePath));
 }
 
 export async function listStoryImages(storyId: string): Promise<string[]> {
@@ -364,6 +373,27 @@ const ANCHOR_WIDTH = 768;
 const ANCHOR_HEIGHT = 432;
 const ANCHOR_QUALITY = 90;
 
+const STORED_IMAGE_WIDTH = 1280;
+const STORED_IMAGE_HEIGHT = 720;
+const STORED_IMAGE_QUALITY = 80;
+
+/**
+ * OpenAI is asked for compressed WebP at the right size, so its output is
+ * stored as-is; re-encoding it would compress it twice. Other providers pick
+ * their own size and format, so they are shrunk and re-encoded here, which
+ * also lets section 1 always be read back as the anchor.
+ */
+async function storableImage(image: GeneratedStoryImage): Promise<Buffer> {
+	if (image.provider === "openai") return image.image;
+	return sharp(image.image)
+		.resize(STORED_IMAGE_WIDTH, STORED_IMAGE_HEIGHT, {
+			fit: "inside",
+			withoutEnlargement: true,
+		})
+		.webp({ quality: STORED_IMAGE_QUALITY })
+		.toBuffer();
+}
+
 async function readAnchorImage(storyId: string): Promise<Buffer | null> {
 	try {
 		const original = await readStoryImage(`${storyId}/section_1.webp`);
@@ -434,14 +464,10 @@ async function generateBackgroundImage(
 			storyText,
 			visualContext: options.visualContext,
 		});
-		const filename = imageFilename(
-			genre,
-			image.extension,
-			options.sectionIndex,
-		);
+		const filename = imageFilename(genre, options.sectionIndex);
 		const filePath = imagePath(storyId, filename);
 		await mkdir(dirname(filePath), { recursive: true });
-		await writeFile(filePath, image.image);
+		await writeFile(filePath, await storableImage(image));
 		return {
 			backgroundImageUrl: `/api/story-images/${storyId}/${filename}`,
 			backgroundImagePrompt: prompt,
@@ -517,16 +543,9 @@ function fallbackBackgroundUrl(genreId: LanguageId) {
 	return languageHeroImageUrl(getLanguage(genreId));
 }
 
-function imageFilename(
-	genre: Language,
-	extension: "jpg" | "png" | "webp",
-	sectionIndex?: number,
-) {
-	if (sectionIndex !== undefined && extension === "webp") {
-		return `section_${sectionIndex}.webp`;
-	}
-	if (sectionIndex !== undefined) return `section_${sectionIndex}.${extension}`;
-	return `${genre.id}-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+function imageFilename(genre: Language, sectionIndex?: number) {
+	if (sectionIndex !== undefined) return `section_${sectionIndex}.webp`;
+	return `${genre.id}-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
 }
 
 function imagePath(storyId: string, filename: string) {

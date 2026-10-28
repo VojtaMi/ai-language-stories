@@ -23,7 +23,7 @@ export function buildStoryBackgroundPrompt(
 			? `Visual continuity to preserve across images: ${visualContext}`
 			: "",
 		`Scene to depict: ${storyText}`,
-		"Use a 3:2 landscape composition",
+		"Use a 16:9 landscape composition",
 		"Put details toward the edges rather than behind the center.",
 		"Most scenes should have no visible text at all. If a sign, poster, or billboard with writing would be natural, include at most one small, secondary instance, not a dominant subject.",
 		hasReferenceImage ? REFERENCE_IMAGE_INSTRUCTION : "",

@@ -3,6 +3,9 @@ import { traceAiCall } from "../aiTrace";
 import type { GeneratedStoryImage, ProviderImageRequest } from "./types";
 
 export const OPENAI_IMAGE_MODEL = "gpt-image-2.5-flare";
+const IMAGE_SIZE = "1280x720";
+// The API defaults to 100, which is lossless WebP: ~1.6 MB per background.
+const IMAGE_COMPRESSION = 80;
 
 export async function generateOpenAiImage({
 	openai,
@@ -12,9 +15,10 @@ export async function generateOpenAiImage({
 	const shared = {
 		model: OPENAI_IMAGE_MODEL,
 		prompt,
-		size: "1536x1024",
+		size: IMAGE_SIZE,
 		quality: "low",
 		output_format: "webp",
+		output_compression: IMAGE_COMPRESSION,
 		n: 1,
 	} as const;
 
@@ -26,10 +30,11 @@ export async function generateOpenAiImage({
 			input: prompt,
 			metadata: {
 				n: 1,
+				outputCompression: IMAGE_COMPRESSION,
 				outputFormat: "webp",
 				quality: "low",
 				referenced: Boolean(referenceImage),
-				size: "1536x1024",
+				size: IMAGE_SIZE,
 			},
 		},
 		async () => {
