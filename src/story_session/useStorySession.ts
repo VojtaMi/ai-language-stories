@@ -26,6 +26,7 @@ import { consumePreparedReadingOpening } from "../openings";
 import { readingSectionDialogue } from "../reading_story/dialogue";
 import { loadSavedStory, saveStoryMedia } from "../saves";
 import {
+	isSupportedReadingStory,
 	readingImagePrompt,
 	readingStoryMessages,
 	readingStorySummary,
@@ -112,7 +113,7 @@ function readingMediaSection(
 		text: part.text,
 		imagePrompt: readingImagePrompt(story, partIndex),
 		genre: selected,
-		visualContext: readingVisualContext(story),
+		visualContext: readingVisualContext(story, partIndex),
 		dialogue: readingSectionDialogue(
 			story.parts,
 			story.characters,
@@ -1059,11 +1060,6 @@ export function useStorySession({
 				onSavesError(null);
 				const save = await loadSavedStory(id);
 				const selected = getLanguage(save.genreId);
-				// A resumed save is never "just finished" in this session, even one
-				// that was already finished when saved — rereading it must not
-				// re-finalize it.
-				justFinishedReadingRef.current = false;
-				activeSaveIdRef.current = save.id;
 				const readingTotalParts = save.readingStory?.parts.length;
 				const restoredPhase: StoryPhase =
 					save.phase === "reading" &&
@@ -1077,6 +1073,22 @@ export function useStorySession({
 						: save.phase === "recap-loading" && save.storyRecapLesson
 							? "recap"
 							: save.phase;
+				// Reading on needs the story's current format; rereading a finished
+				// or recap-phase save does not, so only this case is refused.
+				if (
+					restoredPhase === "reading" &&
+					save.readingStory &&
+					!isSupportedReadingStory(save.readingStory)
+				) {
+					throw new Error(
+						"it was saved in an older format and can't be continued. You can delete it from your saved stories.",
+					);
+				}
+				// A resumed save is never "just finished" in this session, even one
+				// that was already finished when saved — rereading it must not
+				// re-finalize it.
+				justFinishedReadingRef.current = false;
+				activeSaveIdRef.current = save.id;
 				const savedNarrationVoice = isNarrationVoiceId(save.narrationVoice)
 					? save.narrationVoice
 					: DEFAULT_NARRATION_VOICE;

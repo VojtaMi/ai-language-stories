@@ -3,7 +3,7 @@ import { basename, dirname, join } from "node:path";
 import { languages } from "../src/languages.ts";
 import { readingImageIndex } from "../src/reading_story/visualPlan.ts";
 import { buildStoryBackgroundPrompt } from "../src/server/images/prompts.ts";
-import type { ReadingStory } from "../src/story.ts";
+import { type ReadingStory, readingVisualContext } from "../src/story.ts";
 
 const MODELS = [
 	"gpt-image-2",
@@ -21,7 +21,7 @@ type StoryRecord = {
 	id?: string;
 	imagePrompts?: string[];
 	parts?: Array<{ text?: string }>;
-	readingStory?: Pick<ReadingStory, "imagePrompts" | "parts" | "visualContext">;
+	readingStory?: ReadingStory;
 	segments?: Array<{ text?: string }>;
 	visualContext?: string;
 };
@@ -53,7 +53,7 @@ const imagePromptIndex = readingImageIndex(
 	story.readingStory?.parts.length ?? story.parts?.length ?? sectionNumber,
 );
 const storyText =
-	story.readingStory?.imagePrompts[imagePromptIndex]?.trim() ??
+	story.readingStory?.imageScenes[imagePromptIndex]?.prompt.trim() ??
 	story.imagePrompts?.[imagePromptIndex]?.trim() ??
 	story.segments?.[sectionNumber - 1]?.text?.trim() ??
 	story.readingStory?.parts[sectionNumber - 1]?.text?.trim() ??
@@ -67,7 +67,9 @@ if (!storyText) {
 const prompt = buildStoryBackgroundPrompt(
 	genre,
 	storyText,
-	story.readingStory?.visualContext ?? story.visualContext,
+	story.readingStory
+		? readingVisualContext(story.readingStory, sectionNumber)
+		: story.visualContext,
 	Boolean(referenceImage),
 );
 const storyId = story.id ?? basename(dirname(storyPath));

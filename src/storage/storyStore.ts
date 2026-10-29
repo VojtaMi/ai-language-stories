@@ -1,5 +1,6 @@
 import type { LanguageId } from "../languages";
 import type { SavedStory, SavedStorySummary } from "../saves";
+import { isSupportedReadingStory } from "../story";
 
 const DATABASE_NAME = "language-story-reader";
 const DATABASE_VERSION = 1;
@@ -78,6 +79,9 @@ function summary(story: SavedStory): SavedStorySummary {
 		preview: latestText.slice(0, 180),
 		phase: story.phase,
 		isReadingStory: Boolean(story.readingStory),
+		isOutdatedReadingStory:
+			Boolean(story.readingStory) &&
+			!isSupportedReadingStory(story.readingStory),
 	};
 }
 

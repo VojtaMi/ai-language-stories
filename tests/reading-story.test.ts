@@ -38,11 +38,12 @@ import {
 import {
 	buildReadingImageSections,
 	generateReadingVisualPlan,
-	parseReadingVisualPlan,
+	imageVisualContext,
+	parseImageScene,
+	parseVisualElements,
 	READING_STORY_VISUAL_MODEL,
 	readingImageIndex,
 	readingImageParts,
-	readingVisualPlanMessages,
 } from "../src/reading_story/visualPlan.ts";
 import {
 	prepareReadingStoryPlot,
@@ -50,6 +51,10 @@ import {
 	readingStoryPlotMessages,
 	readingStoryPlotReviewMessages,
 } from "../src/readingStoryPlot.ts";
+import {
+	findUnfinishedReadingSave,
+	type SavedStorySummary,
+} from "../src/saves.ts";
 import {
 	completeAi,
 	completeStructuredAi,
@@ -66,6 +71,7 @@ import {
 	type ChatMessage,
 	type Complete,
 	generateReadingStory,
+	isSupportedReadingStory,
 	parseReadingStory,
 	type ReadingStory,
 	readingImagePrompt,
@@ -125,6 +131,36 @@ const manuscript = {
 	cast: [{ name: "Mara", identity: "a young woman travelling alone" }],
 };
 
+const visualElements = [
+	{
+		name: "Mara",
+		description:
+			"A woman in her thirties with short black hair and a green coat.",
+	},
+	{ name: "the station", description: "Stone platforms and a glass roof." },
+	{ name: "the ticket", description: "A small yellow paper ticket." },
+];
+
+/**
+ * Answers the visual planner's look and scene calls; any other call is left to
+ * `otherwise`. Scenes show Mara at the station; the ticket stays out of them.
+ */
+function visualPlanStep(
+	system: string,
+	otherwise: () => string | Promise<string>,
+) {
+	if (system.includes("shared visual look")) {
+		return JSON.stringify({ visualElements, properNames: ["Mara"] });
+	}
+	if (system.includes("Plan one illustration")) {
+		return JSON.stringify({
+			visible: ["Mara", "the station"],
+			prompt: "Mara checks the map.",
+		});
+	}
+	return otherwise();
+}
+
 function finalStoryJson(
 	partCount = 5,
 	imageCount = readingImageParts(partCount).length,
@@ -133,13 +169,12 @@ function finalStoryJson(
 		title: manuscript.title,
 		storySummary: "Mara finds the correct train.",
 		languageFocus: nextStoryBrief.language.focus,
-		visualContext:
-			"Mara is a woman in her thirties with short black hair and a green coat. The station has stone platforms and a glass roof.",
+		visualElements,
 		properNames: ["Mara"],
-		imagePrompts: Array.from(
-			{ length: imageCount },
-			(_, index) => `Settled scene ${index + 1}.`,
-		),
+		imageScenes: Array.from({ length: imageCount }, (_, index) => ({
+			visible: ["Mara", "the station"],
+			prompt: `Settled scene ${index + 1}.`,
+		})),
 		parts: Array.from({ length: partCount }, (_, index) => ({
 			text: `Esperanta teksto de parto ${index + 1}. Ĝi estas kompleta.`,
 		})),
@@ -297,7 +332,7 @@ assert.match(
 );
 assert.doesNotMatch(
 	manuscriptMessages[0].content,
-	/imagePrompts|visualContext/,
+	/imageScenes|visualElements/,
 );
 const authoringContext = JSON.parse(
 	manuscriptMessages[1].content.split("\n\n").at(-1) ?? "",
@@ -797,54 +832,59 @@ assert.equal(
 );
 console.log("checked reading story: highlighting follows measured segments");
 
-// --- Shared visual core and per-pair instructions ----------------------------
+// --- Visual look and per-image scenes ---------------------------------------
 
-const visualMessages = readingVisualPlanMessages(parts, manuscript.cast);
-assert.match(visualMessages[0].content, /Shared visual context/i);
-assert.match(visualMessages[0].content, /exactly 2 imagePrompts/i);
-assert.match(
-	visualMessages[0].content,
-	/one imagePrompt for each imageSection/i,
+const visualCalls: ChatMessage[][] = [];
+const visualPlan = await generateReadingVisualPlan(
+	async (messages) => {
+		visualCalls.push(messages);
+		return visualPlanStep(messages[0].content, () => {
+			throw new Error("Unexpected visual call.");
+		});
+	},
+	parts,
+	manuscript.cast,
 );
-assert.match(visualMessages[0].content, /every visible person.*individually/i);
-assert.match(visualMessages[0].content, /never use a collective/i);
-assert.match(
-	visualMessages[0].content,
-	/No other people or creatures are visible/,
-);
-const visualContext = JSON.parse(
-	visualMessages[1].content.split("\n\n").at(-1) ?? "",
-);
-assert.equal(visualContext.imageSections.length, 2);
-assert.deepEqual(Object.keys(visualContext), [
-	"cast",
-	"storyParts",
-	"imageSections",
-]);
-assert.deepEqual(visualContext.cast, manuscript.cast);
+const callData = (messages: ChatMessage[]) =>
+	JSON.parse(messages[1].content.split("\n\n").at(-1) ?? "");
+// One look call, then one scene call per image.
+assert.equal(visualCalls.length, 3);
+const [lookCall, ...sceneCalls] = visualCalls;
+assert.match(lookCall[0].content, /shared visual look/i);
+assert.match(lookCall[0].content, /Never state in a description where/i);
+assert.deepEqual(Object.keys(callData(lookCall)), ["cast", "storyParts"]);
+assert.deepEqual(callData(lookCall).cast, manuscript.cast);
 assert.deepEqual(
-	visualContext.storyParts,
+	callData(lookCall).storyParts,
 	parts.map((part) => part.text),
 );
+const sceneSystem = sceneCalls[0][0].content;
+assert.match(sceneSystem, /still with the others is visible/i);
+assert.match(sceneSystem, /never use a collective/i);
+assert.match(sceneSystem, /No other people or creatures are visible/);
+assert.deepEqual(Object.keys(callData(sceneCalls[0])), [
+	"cast",
+	"storyParts",
+	"visualElements",
+	"section",
+]);
+assert.deepEqual(callData(sceneCalls[0]).visualElements, visualElements);
+// Each image shows only the first part of its pair, never a blend of both.
 assert.deepEqual(
-	visualContext.imageSections.map(
-		(section: {
-			number: number;
-			sourceParts: number[];
-			shownPart: number;
-		}) => ({
-			number: section.number,
-			sourceParts: section.sourceParts,
-			shownPart: section.shownPart,
-		}),
-	),
+	sceneCalls.map((call) => callData(call).section),
 	[
-		{ number: 1, sourceParts: [1, 2], shownPart: 1 },
-		{ number: 2, sourceParts: [3], shownPart: 3 },
+		{ part: 1, text: parts[0].text },
+		{ part: 3, text: parts[2].text },
 	],
 );
-// Each image shows only the first part of its pair, never a blend of both.
-assert.equal(visualContext.imageSections[0].text, parts[0].text);
+assert.equal(visualPlan.imageScenes.length, 2);
+assert.deepEqual(visualPlan.properNames, ["Mara"]);
+// Only elements present at the moment reach the image, worded as the look defined them.
+assert.equal(
+	imageVisualContext(visualPlan.visualElements, visualPlan.imageScenes[0]),
+	"Mara: A woman in her thirties with short black hair and a green coat.\nthe station: Stone platforms and a glass roof.",
+);
+
 assert.deepEqual(buildReadingImageSections([parts[0]]), [
 	{ number: 1, sourceParts: [1], shownPart: 1, text: parts[0].text },
 ]);
@@ -868,62 +908,46 @@ assert.deepEqual(
 	],
 );
 
-const visualPlan = parseReadingVisualPlan(
-	JSON.stringify({
-		visualContext: "Stable people and station.",
-		properNames: ["Mara"],
-		imagePrompts: ["Mara checks the map.", "Mara enters the train."],
-	}),
-	2,
+assert.throws(
+	() => parseVisualElements([visualElements[0], visualElements[0]]),
+	/more than once/,
 );
-assert.equal(visualPlan.imagePrompts.length, 2);
-assert.throws(() =>
-	parseReadingVisualPlan(
-		JSON.stringify({
-			...visualPlan,
-			imagePrompts: ["Only one."],
-		}),
-		2,
-	),
+assert.throws(
+	() =>
+		parseImageScene({ visible: ["Mara", "the dog"], prompt: "A scene." }, [
+			"Mara",
+		]),
+	/unknown visual elements: the dog/,
 );
 
-const visualRepairCalls: ChatMessage[][] = [];
+const sceneRepairCalls: ChatMessage[][] = [];
 const repairedVisualPlan = await generateReadingVisualPlan(
 	async (messages) => {
-		visualRepairCalls.push(messages);
-		if (visualRepairCalls.length === 1) {
-			return JSON.stringify({
-				visualContext: "Stable people and station.",
-				properNames: ["Mara"],
-				imagePrompts: ["One.", "Two.", "Three."],
-			});
+		sceneRepairCalls.push(messages);
+		const system = messages[0].content;
+		if (system.includes("Repair the supplied rejectedOutput")) {
+			return JSON.stringify({ visible: ["Mara"], prompt: "Mara boards." });
 		}
-		return JSON.stringify({
-			visualContext: "Stable people and station.",
-			properNames: ["Mara"],
-			imagePrompts: ["Parts one and two.", "Part three."],
+		if (system.includes("Plan one illustration")) {
+			return JSON.stringify({ visible: ["Mara", "the dog"], prompt: "X." });
+		}
+		return visualPlanStep(system, () => {
+			throw new Error("Unexpected visual call.");
 		});
 	},
 	parts,
 	manuscript.cast,
 );
-assert.deepEqual(repairedVisualPlan.imagePrompts, [
-	"Parts one and two.",
-	"Part three.",
-]);
-assert.equal(visualRepairCalls.length, 2);
-assert.match(
-	visualRepairCalls[1][0].content,
-	/do not obtain the required count by merely truncating/i,
+assert.deepEqual(
+	repairedVisualPlan.imageScenes.map((scene) => scene.prompt),
+	["Mara boards.", "Mara boards."],
 );
-const visualRepairContext = JSON.parse(
-	visualRepairCalls[1][1].content.split("\n\n").at(-1) ?? "",
+const sceneRepair = sceneRepairCalls.find((call) =>
+	call[0].content.includes("Repair the supplied rejectedOutput"),
 );
-assert.equal(visualRepairContext.imageSections.length, 2);
-assert.match(
-	visualRepairContext.validationFailure,
-	/returned 3.*expected exactly 2/i,
-);
+assert.ok(sceneRepair);
+assert.match(callData(sceneRepair).validationFailure, /the dog/);
+assert.match(callData(sceneRepair).originalRequest, /Plan one illustration/);
 console.log("checked reading story: visual planning follows settled parts");
 
 // --- Thin orchestration ------------------------------------------------------
@@ -969,14 +993,9 @@ const generated = await generateReadingStory(
 		if (system.includes("presentation parts")) {
 			return '{"breakAfterSentence":[4,8]}';
 		}
-		if (system.includes("coherent visual plan")) {
-			return JSON.stringify({
-				visualContext: "Stable people and station.",
-				properNames: ["Mara"],
-				imagePrompts: ["Mara checks the map.", "Mara enters the train."],
-			});
-		}
-		throw new Error(`Unexpected pipeline call: ${system.slice(0, 80)}`);
+		return visualPlanStep(system, () => {
+			throw new Error(`Unexpected pipeline call: ${system.slice(0, 80)}`);
+		});
 	},
 	genre,
 	preferences,
@@ -984,7 +1003,7 @@ const generated = await generateReadingStory(
 	{ nextStoryBrief, reasoningEffort: "medium" },
 );
 assert.equal(generated.parts.length, 3);
-assert.equal(generated.imagePrompts.length, 2);
+assert.equal(generated.imageScenes.length, 2);
 assert.equal(
 	generated.storySummary,
 	"A commuter asks for directions and finds the correct train.",
@@ -1001,13 +1020,17 @@ assert.deepEqual(
 		{ model: READING_STORY_PROOFREAD_MODEL, reasoningEffort: "medium" },
 		{ model: DEFAULT_TEXT_MODEL },
 		{ model: READING_STORY_VISUAL_MODEL, reasoningEffort: "none" },
+		{ model: READING_STORY_VISUAL_MODEL, reasoningEffort: "none" },
+		{ model: READING_STORY_VISUAL_MODEL, reasoningEffort: "none" },
 	],
 );
 assert.equal(
 	generated.parts.map((part) => part.text).join(" "),
 	logicCheckedText,
 );
-console.log("checked reading story: staged pipeline has seven explicit calls");
+console.log(
+	"checked reading story: staged pipeline plans one scene call per image",
+);
 
 // --- Proofreading --------------------------------------------------------------
 
@@ -1060,10 +1083,8 @@ const failedProofread = await generateReadingStory(
 		if (system.includes("presentation parts")) {
 			return '{"breakAfterSentence":[4,8]}';
 		}
-		return JSON.stringify({
-			visualContext: "Stable people and station.",
-			properNames: ["Mara"],
-			imagePrompts: ["Mara checks the map.", "Mara enters the train."],
+		return visualPlanStep(system, () => {
+			throw new Error(`Unexpected pipeline call: ${system.slice(0, 80)}`);
 		});
 	},
 	genre,
@@ -1086,17 +1107,18 @@ console.log(
 
 const parsed = parseReadingStory(finalStoryJson(5));
 assert.equal(parsed.parts.length, 5);
-assert.equal(parsed.imagePrompts.length, 3);
-assert.equal(readingImagePrompt(parsed, 1), parsed.imagePrompts[0]);
-assert.equal(readingImagePrompt(parsed, 2), parsed.imagePrompts[0]);
-assert.equal(readingImagePrompt(parsed, 3), parsed.imagePrompts[1]);
-assert.equal(readingImagePrompt(parsed, 5), parsed.imagePrompts[2]);
-assert.equal(readingVisualContext(parsed), parsed.visualContext);
+assert.equal(parsed.imageScenes.length, 3);
+assert.equal(readingImagePrompt(parsed, 1), "Settled scene 1.");
+assert.equal(readingImagePrompt(parsed, 2), "Settled scene 1.");
+assert.equal(readingImagePrompt(parsed, 3), "Settled scene 2.");
+assert.equal(readingImagePrompt(parsed, 5), "Settled scene 3.");
+assert.match(readingVisualContext(parsed, 3), /^Mara: .*\nthe station: /);
+assert.doesNotMatch(readingVisualContext(parsed, 3), /ticket/);
 assert.throws(() => parseReadingStory(finalStoryJson(5, 2)));
 assert.throws(() => parseReadingStory(finalStoryJson(9)));
 assert.throws(() =>
 	parseReadingStory(
-		finalStoryJson(3).replace('"visualContext":', '"missingVisualContext":'),
+		finalStoryJson(3).replace('"visualElements":', '"missingVisualElements":'),
 	),
 );
 assert.deepEqual(
@@ -1106,6 +1128,43 @@ assert.deepEqual(
 	parsed,
 );
 assert.deepEqual(parseReadingStory(`${finalStoryJson(5)}}`), parsed);
+
+// A story saved before a format change is recognised, so an unfinished one
+// can never block a new story it cannot be continued into.
+const { visualElements: _, imageScenes: __, ...outdatedStory } = parsed;
+assert.ok(isSupportedReadingStory(parsed));
+assert.ok(
+	!isSupportedReadingStory({
+		...outdatedStory,
+		visualContext: "Old shared context.",
+		imagePrompts: ["One.", "Two.", "Three."],
+	}),
+);
+const unfinishedSave = (
+	id: string,
+	isOutdatedReadingStory: boolean,
+): SavedStorySummary => ({
+	id,
+	genreId: genre.id,
+	title: id,
+	createdAt: "2026-10-29T00:00:00.000Z",
+	updatedAt: "2026-10-29T00:00:00.000Z",
+	preview: "",
+	phase: "reading",
+	isReadingStory: true,
+	isOutdatedReadingStory,
+});
+assert.equal(findUnfinishedReadingSave([unfinishedSave("old", true)]), null);
+assert.equal(
+	findUnfinishedReadingSave([
+		unfinishedSave("old", true),
+		unfinishedSave("current", false),
+	])?.id,
+	"current",
+);
+console.log(
+	"checked reading story: an outdated unfinished save never blocks a new story",
+);
 console.log(
 	"checked reading story: variable part and image counts are validated",
 );
@@ -1243,7 +1302,7 @@ function section(partIndex: number): ReadingMediaSection {
 		text: story.parts[partIndex - 1].text,
 		imagePrompt: readingImagePrompt(story, partIndex),
 		genre,
-		visualContext: readingVisualContext(story),
+		visualContext: readingVisualContext(story, partIndex),
 	};
 }
 

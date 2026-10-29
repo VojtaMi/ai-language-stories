@@ -46,6 +46,8 @@ export interface SavedStorySummary {
 	phase: StoryPhase;
 	/** Whether this save is a reading story (has a whole story to cursor into). */
 	isReadingStory: boolean;
+	/** A reading story saved in an older format; see `isSupportedReadingStory`. */
+	isOutdatedReadingStory: boolean;
 }
 
 export async function listSavedStories(
@@ -58,14 +60,19 @@ export async function listSavedStories(
  * The one reading-story save, if any, that hasn't reached "finished" yet. At
  * most one can exist at a time: a reading story is only ever started by
  * consuming the prepared queue, and the queue only refills once the previous
- * story is finished and finalized.
+ * story is finished and finalized. A save in an older format cannot be
+ * continued, so it is not counted and never blocks a new story.
  */
 export function findUnfinishedReadingSave(
 	saves: SavedStorySummary[],
 ): SavedStorySummary | null {
 	return (
-		saves.find((save) => save.isReadingStory && save.phase !== "finished") ??
-		null
+		saves.find(
+			(save) =>
+				save.isReadingStory &&
+				!save.isOutdatedReadingStory &&
+				save.phase !== "finished",
+		) ?? null
 	);
 }
 

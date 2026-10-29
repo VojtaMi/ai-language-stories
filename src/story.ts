@@ -16,6 +16,11 @@ import {
 } from "./reading_story/split";
 import {
 	generateReadingVisualPlan,
+	imageVisualContext,
+	parseImageScene,
+	parseVisualElements,
+	type ReadingImageScene,
+	type ReadingVisualElement,
 	readingImageIndex,
 	readingImageParts,
 } from "./reading_story/visualPlan";
@@ -42,12 +47,12 @@ export interface ReadingStory {
 	languageFocus: string;
 	/** The validated handoff used to generate this story; recovery reuses it if the next handoff is malformed. */
 	generationBrief?: NextStoryBrief;
-	/** Shared identity, location, and recurring-object context for every image. */
-	visualContext: string;
+	/** Recurring characters, places, and objects, described once for every image. */
+	visualElements: ReadingVisualElement[];
 	/** Character and place names excluded from vocabulary translation. */
 	properNames: string[];
-	/** One dominant-action image prompt per pair of parts, in narrative order. */
-	imagePrompts: string[];
+	/** One scene per image part, in narrative order; see {@link readingImageParts}. */
+	imageScenes: ReadingImageScene[];
 	parts: ReadingStoryPart[];
 	/**
 	 * Speaking characters and one attribution per dialogue quotation across all
@@ -89,22 +94,39 @@ export function readingStoryMessages(
 	];
 }
 
-/** Hidden image-generation context that keeps the character and place stable across sections. */
-export function readingVisualContext(story: ReadingStory): string {
-	return story.visualContext;
+function readingImageScene(
+	story: ReadingStory,
+	partIndex: number,
+): ReadingImageScene {
+	return story.imageScenes[readingImageIndex(partIndex, story.parts.length)];
+}
+
+/**
+ * Hidden image-generation context for the section at `partIndex` (1-based):
+ * the appearance of only the elements present in its image, so identities stay
+ * stable without objects leaking into moments they are not part of.
+ */
+export function readingVisualContext(
+	story: ReadingStory,
+	partIndex: number,
+): string {
+	return imageVisualContext(
+		story.visualElements,
+		readingImageScene(story, partIndex),
+	);
 }
 
 /**
  * The image prompt for the section at `partIndex` (1-based): the image of the
  * nearest image part at or before it (see {@link readingImageParts}). This is
- * the dominant action the image should depict; the stable character identity
- * is supplied separately by {@link readingVisualContext}.
+ * the dominant action the image should depict; the stable identities are
+ * supplied separately by {@link readingVisualContext}.
  */
 export function readingImagePrompt(
 	story: ReadingStory,
 	partIndex: number,
 ): string {
-	return story.imagePrompts[readingImageIndex(partIndex, story.parts.length)];
+	return readingImageScene(story, partIndex).prompt;
 }
 
 /** Compact English context retained with the finished story for audit and finalization. */
@@ -174,6 +196,38 @@ export async function generateReadingStory(
 }
 
 /**
+ * Whether a stored story matches the current format, so the reading session can
+ * run it end to end. Stories saved before a format change fail it: the prepared
+ * queue drops them, and an unfinished save stops blocking a new story.
+ */
+export function isSupportedReadingStory(story: unknown): story is ReadingStory {
+	if (!story || typeof story !== "object") return false;
+	const readingStory = story as ReadingStory;
+	const parts = readingStory.parts;
+	return (
+		typeof readingStory.title === "string" &&
+		Boolean(readingStory.title.trim()) &&
+		typeof readingStory.storySummary === "string" &&
+		Boolean(readingStory.storySummary.trim()) &&
+		typeof readingStory.languageFocus === "string" &&
+		Boolean(readingStory.languageFocus.trim()) &&
+		Array.isArray(readingStory.visualElements) &&
+		readingStory.visualElements.length > 0 &&
+		Array.isArray(parts) &&
+		parts.length >= 2 &&
+		parts.length <= READING_STORY_MAX_PARTS &&
+		parts.every((part) => Boolean(part?.text?.trim())) &&
+		Array.isArray(readingStory.properNames) &&
+		Array.isArray(readingStory.imageScenes) &&
+		readingStory.imageScenes.length ===
+			readingImageParts(parts.length).length &&
+		readingStory.imageScenes.every(
+			(scene) => Array.isArray(scene?.visible) && Boolean(scene.prompt?.trim()),
+		)
+	);
+}
+
+/**
  * Accepts only a story the reading session can run end to end: bounded non-empty
  * parts, one image instruction per pair, and the metadata media and recap need.
  */
@@ -204,16 +258,19 @@ export function parseReadingStory(raw: string): ReadingStory {
 		parsed.languageFocus,
 		"languageFocus",
 	);
-	const visualContext = requiredStoryField(
-		parsed.visualContext,
-		"visualContext",
-	);
+	const visualElements = parseVisualElements(parsed.visualElements);
 	const properNames = requiredStringArray(parsed.properNames, "properNames");
-	const imagePrompts = requiredStringArray(parsed.imagePrompts, "imagePrompts");
+	const elementNames = visualElements.map((element) => element.name);
+	if (!Array.isArray(parsed.imageScenes)) {
+		throw new Error("The AI returned a reading story with no imageScenes.");
+	}
+	const imageScenes = parsed.imageScenes.map((scene) =>
+		parseImageScene(scene, elementNames),
+	);
 	const imageCount = readingImageParts(parsed.parts.length).length;
-	if (imagePrompts.length !== imageCount) {
+	if (imageScenes.length !== imageCount) {
 		throw new Error(
-			`The reading story has ${imagePrompts.length} image prompts instead of ${imageCount}.`,
+			`The reading story has ${imageScenes.length} image scenes instead of ${imageCount}.`,
 		);
 	}
 
@@ -231,9 +288,9 @@ export function parseReadingStory(raw: string): ReadingStory {
 		title,
 		storySummary,
 		languageFocus,
-		visualContext,
+		visualElements,
 		properNames,
-		imagePrompts,
+		imageScenes,
 		parts,
 	};
 }

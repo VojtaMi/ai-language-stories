@@ -6,12 +6,12 @@ import {
 	type GeminiImageModel,
 	generateStoryImage,
 } from "../src/server/images/index.ts";
-import type { ReadingStory } from "../src/story.ts";
+import { type ReadingStory, readingVisualContext } from "../src/story.ts";
 
 type StoryRecord = {
 	genreId?: string;
 	id?: string;
-	readingStory?: Pick<ReadingStory, "visualContext">;
+	readingStory?: ReadingStory;
 	segments?: Array<{
 		text?: string;
 	}>;
@@ -77,7 +77,9 @@ for (const sectionNumber of sectionNumbers) {
 		openai,
 		provider: "gemini",
 		storyText,
-		visualContext: readingVisualContext(story),
+		visualContext: story.readingStory
+			? readingVisualContext(story.readingStory, sectionNumber)
+			: undefined,
 	});
 	const filename = `section_${sectionNumber}_${modelSlug(image.model)}.${image.extension}`;
 	const file = join(outputDir, filename);
@@ -113,12 +115,6 @@ await writeFile(
 	`${JSON.stringify(manifest, null, 2)}\n`,
 	"utf8",
 );
-
-function readingVisualContext(story: StoryRecord) {
-	const readingStory = story.readingStory;
-	if (!readingStory) return undefined;
-	return readingStory.visualContext;
-}
 
 function geminiImageModel(value: string): GeminiImageModel {
 	if (

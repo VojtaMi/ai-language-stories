@@ -19,11 +19,10 @@ import {
 	pickRandomNarrationVoice,
 } from "../narrationVoice";
 import { readingSectionDialogue } from "../reading_story/dialogue";
-import { READING_STORY_MAX_PARTS } from "../reading_story/split";
-import { readingImageParts } from "../reading_story/visualPlan";
 import {
 	type ChatMessage,
 	generateReadingStory,
+	isSupportedReadingStory,
 	type ReadingStory,
 	readingImagePrompt,
 	readingStoryMessages,
@@ -173,7 +172,7 @@ export async function prepareMissingReadingOpenings(
 							existing.id,
 							{
 								sectionIndex: 1,
-								visualContext: readingVisualContext(existing.readingStory),
+								visualContext: readingVisualContext(existing.readingStory, 1),
 							},
 						),
 					);
@@ -301,7 +300,7 @@ async function createPreparedReadingOpening(
 			id,
 			{
 				sectionIndex: 1,
-				visualContext: readingVisualContext(readingStory),
+				visualContext: readingVisualContext(readingStory, 1),
 			},
 		),
 		createOpeningAudio(openai, text, id, narrationVoice, {
@@ -490,37 +489,12 @@ async function readPreparedReadingOpening(
 	try {
 		const text = await readFile(readingOpeningPath(learnerId, genreId), "utf8");
 		const opening = JSON.parse(text) as PreparedReadingOpening;
-		// The queue is a cache, not history: an entry written before stories were
-		// generated whole holds only a frame, so drop it and prepare a real one.
-		return isCompleteReadingStory(opening?.readingStory) ? opening : null;
+		// The queue is a cache, not history: an entry in an older story format is
+		// dropped so a current one is prepared in its place.
+		return isSupportedReadingStory(opening?.readingStory) ? opening : null;
 	} catch {
 		return null;
 	}
-}
-
-function isCompleteReadingStory(story: unknown): story is ReadingStory {
-	if (!story || typeof story !== "object") return false;
-	const readingStory = story as ReadingStory;
-	const parts = readingStory.parts;
-	return (
-		typeof readingStory.title === "string" &&
-		Boolean(readingStory.title.trim()) &&
-		typeof readingStory.storySummary === "string" &&
-		Boolean(readingStory.storySummary.trim()) &&
-		typeof readingStory.languageFocus === "string" &&
-		Boolean(readingStory.languageFocus.trim()) &&
-		typeof readingStory.visualContext === "string" &&
-		Boolean(readingStory.visualContext.trim()) &&
-		Array.isArray(parts) &&
-		parts.length >= 2 &&
-		parts.length <= READING_STORY_MAX_PARTS &&
-		parts.every((part) => Boolean(part?.text?.trim())) &&
-		Array.isArray(readingStory.properNames) &&
-		Array.isArray(readingStory.imagePrompts) &&
-		readingStory.imagePrompts.length ===
-			readingImageParts(parts.length).length &&
-		readingStory.imagePrompts.every((prompt) => Boolean(prompt?.trim()))
-	);
 }
 
 async function writePreparedReadingOpening(

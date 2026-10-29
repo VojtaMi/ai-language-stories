@@ -247,9 +247,9 @@ const story = {
 	title: "Testo",
 	storySummary: "A simple test.",
 	languageFocus: "estas",
-	visualContext: "",
+	visualElements: [],
 	properNames: [],
-	imagePrompts: [],
+	imageScenes: [],
 	parts: [{ text: "Jen unu." }, { text: "Jen du." }],
 };
 assert.deepEqual(

@@ -17,7 +17,11 @@ import { join } from "node:path";
 import OpenAI, { toFile } from "openai";
 import type { Language } from "../src/languages.ts";
 import { buildStoryBackgroundPrompt } from "../src/server/images/prompts.ts";
-import { type ReadingStory, readingVisualContext } from "../src/story.ts";
+import {
+	type ReadingStory,
+	readingImagePrompt,
+	readingVisualContext,
+} from "../src/story.ts";
 
 /**
  * Tells the model what the attachments are for. The second sentence is the
@@ -41,7 +45,6 @@ const story = JSON.parse(await readFile(storyPath, "utf8")) as {
 const readingStory = story.readingStory;
 const storyDir = join(process.cwd(), "stories", story.genreId, story.id);
 const genre = { id: story.genreId, label: "Esperanto" } as unknown as Language;
-const visualContext = readingVisualContext(readingStory);
 
 const outDir = join(storyDir, "alternative-images-v2");
 await mkdir(outDir, { recursive: true });
@@ -52,13 +55,12 @@ const reference = async (name: string) =>
 
 const openai = new OpenAI();
 
-/** imagePrompts[1] -> section 3, imagePrompts[2] -> section 5. */
 const runs = [
-	{ label: "section_3_small", promptIndex: 1, refs: ["section_1_small.webp"] },
-	{ label: "section_5_small", promptIndex: 2, refs: ["section_1_small.webp"] },
+	{ label: "section_3_small", section: 3, refs: ["section_1_small.webp"] },
+	{ label: "section_5_small", section: 5, refs: ["section_1_small.webp"] },
 	{
 		label: "section_5_chained",
-		promptIndex: 2,
+		section: 5,
 		refs: ["section_1_small.webp", "section_3_small.webp"],
 	},
 ] as const;
@@ -66,8 +68,8 @@ const runs = [
 for (const run of runs) {
 	const prompt = `${buildStoryBackgroundPrompt(
 		genre,
-		readingStory.imagePrompts[run.promptIndex],
-		visualContext,
+		readingImagePrompt(readingStory, run.section),
+		readingVisualContext(readingStory, run.section),
 	)}\n${REFERENCE_INSTRUCTION}`;
 
 	const response = await openai.images.edit({
