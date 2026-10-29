@@ -105,6 +105,13 @@ function wordConnectSpec(
 	};
 }
 
+/**
+ * Models picked another story place or thing as a wrong choice even when it was
+ * also true, such as "im Café" for a cake eaten by the café's window.
+ */
+const WRONG_CHOICE_CHECK =
+	"Check every wrong choice against the whole story: it must not also be true at another level of detail, such as the room or building that contains the correct place, the whole the correct thing is part of, or a broader or narrower description of the correct answer.";
+
 function fillMissingWordSpec(
 	genre: Language,
 ): RecapExerciseSpec<StoryRecapFillMissingWordExercise> {
@@ -117,6 +124,7 @@ function fillMissingWordSpec(
 		instructions:
 			"Test understanding of a concrete story event, person, object, or place, using exactly three fill choices drawn from familiar story vocabulary. " +
 			"All three choices must fit the sentence grammatically; exactly one completed sentence must be true according to the story, and the other two must be clearly false. " +
+			`${WRONG_CHOICE_CHECK} ` +
 			"Include enough context to identify the event without memorizing the story's exact wording. Choose a different story detail from the story-question exercise. " +
 			"Use different content words or short phrases, never variants of the same word that test articles, endings, case, conjugation, or tense. Keep the sentence and choices as simple as the story. " +
 			"The `answer` is a single word or at most a short two-word phrase. " +
@@ -169,8 +177,7 @@ const storyQuestionSpec: RecapExerciseSpec<StoryRecapQuestionExercise> = {
 		answer: "correct answer",
 		choices: ["correct", "wrong"],
 	},
-	instructions:
-		"Use two or three story-question choices, using only facts from the story. Exactly one choice is true according to the story; every other choice must be clearly false in the story.",
+	instructions: `Use two or three story-question choices, using only facts from the story. Exactly one choice is true according to the story; every other choice must be clearly false in the story. ${WRONG_CHOICE_CHECK}`,
 	parse(value) {
 		if (!isObject(value)) throw new Error("Recap story question is invalid.");
 		const answer = requiredString(

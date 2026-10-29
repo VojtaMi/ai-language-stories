@@ -216,6 +216,13 @@ export function useStorySession({
 	// should ever finalize: rereading must not re-finalize or re-trigger
 	// preparation against stale, superseded evidence.
 	const justFinishedReadingRef = useRef(false);
+	// The recap request started when the learner reached the last part.
+	// Reasoning makes it take seconds, which the last part's reading time hides;
+	// a word looked up after it started reaches the handoff, not this recap.
+	const recapPrefetchRef = useRef<{
+		saveId: string;
+		lesson: Promise<StoryRecapLesson>;
+	} | null>(null);
 
 	// Owns finalize-then-prepare for the next reading story, and the menu's
 	// readiness for it.
@@ -648,6 +655,43 @@ export function useStorySession({
 		resetStoryFeedback,
 	]);
 
+	const requestStoryRecap = useCallback(
+		(storyParts: string[]) =>
+			// The recap is a small structured exercise, not prose, so it does not
+			// follow the story-generation preset (a prose-tier model + reasoning
+			// effort chosen for the story itself). It uses EXERCISE_MODEL.
+			generateStoryRecapLesson({
+				genreId: language.id,
+				storyParts,
+				// Reuse the contextual glosses prepared with the story; they already
+				// cover every story word, so the recap needs no fresh translation call.
+				wordTranslations: wordTranslationsRef.current ?? {},
+				lookedUpWords: [...wordLookupsRef.current],
+			}),
+		[language.id],
+	);
+
+	useEffect(() => {
+		if (
+			phase !== "reading" ||
+			!activeSaveId ||
+			!readingStory ||
+			readingPartIndex !== readingStory.parts.length ||
+			recapPrefetchRef.current?.saveId === activeSaveId
+		) {
+			return;
+		}
+		const lesson = requestStoryRecap(
+			readingStory.parts.map((part) => part.text),
+		);
+		// A failure surfaces at the finish, which then asks again.
+		lesson.catch(() => {});
+		recapPrefetchRef.current = {
+			saveId: activeSaveId,
+			lesson,
+		};
+	}, [activeSaveId, phase, readingPartIndex, readingStory, requestStoryRecap]);
+
 	const generateAndApplyStoryRecap = useCallback(
 		async (finishedSegments: StorySegment[]) => {
 			if (!genre || !activeSaveId || !readingStory) return;
@@ -659,18 +703,12 @@ export function useStorySession({
 				const storyParts = finishedSegments
 					.filter((segment) => segment.author === "ai")
 					.map((segment) => segment.text);
-				// Reuse the contextual glosses prepared with the story; they already
-				// cover every story word, so the recap needs no fresh translation call.
-				const translations = wordTranslationsRef.current ?? {};
-				// The recap is a small structured exercise, not prose, so it does not
-				// follow the story-generation preset (a prose-tier model + reasoning
-				// effort chosen for the story itself). It uses EXERCISE_MODEL.
-				const lesson = await generateStoryRecapLesson({
-					genreId: language.id,
-					storyParts,
-					wordTranslations: translations,
-					lookedUpWords: wordLookupsRef.current,
-				});
+				const prefetched = recapPrefetchRef.current;
+				recapPrefetchRef.current = null;
+				const lesson =
+					prefetched?.saveId === activeSaveId
+						? await prefetched.lesson.catch(() => requestStoryRecap(storyParts))
+						: await requestStoryRecap(storyParts);
 
 				storyRecapLessonRef.current = lesson;
 				setStoryRecapLesson(lesson);
@@ -729,7 +767,7 @@ export function useStorySession({
 			persistStory,
 			readingStory,
 			readingPartIndex,
-			language.id,
+			requestStoryRecap,
 		],
 	);
 

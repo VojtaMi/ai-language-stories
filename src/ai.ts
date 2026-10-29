@@ -28,6 +28,8 @@ import type { TtsModelId } from "./ttsModel";
 export type { ChatMessage, ReadingStory, ReadingStoryPart };
 
 /** Output budget for the small structured recap lesson. */
+// Low reasoning used up to ~630 tokens including the JSON. The browser-facing
+// completion endpoint rejects more than 1200 (COMPLETE_MAX_TOKENS).
 const STORY_RECAP_MAX_TOKENS = 1200;
 
 export async function fetchProviderAvailability(): Promise<ProviderAvailability> {
@@ -244,7 +246,9 @@ export async function generateStoryRecapLesson(
 		model,
 		STORY_RECAP_MAX_TOKENS,
 		"json",
-		"none",
+		// Without reasoning, a third of recaps on one story offered a wrong choice
+		// that was also true; low reasoning checks the choices against the story.
+		"low",
 	);
 	return parseStoryRecapLesson(text, genre);
 }
