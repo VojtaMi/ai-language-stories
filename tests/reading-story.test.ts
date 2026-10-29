@@ -268,7 +268,7 @@ assert.deepEqual(JSON.parse(reviewMessages[1].content), {
 });
 
 const plotCalls: Array<Parameters<Complete>> = [];
-const preparedPlot = await prepareReadingStoryPlot(
+const { plot: preparedPlot } = await prepareReadingStoryPlot(
 	async (...args) => {
 		plotCalls.push(args);
 		return plotCalls.length === 1
@@ -288,7 +288,7 @@ assert.deepEqual(
 	plotCalls.map(([, , options]) => options),
 	[
 		{ model: READING_STORY_PLOT_MODEL, reasoningEffort: "low" },
-		{ model: READING_STORY_PLOT_MODEL, reasoningEffort: "low" },
+		{ model: READING_STORY_PLOT_MODEL, reasoningEffort: "medium" },
 	],
 );
 console.log("checked reading story: plot names follow language guidance");
@@ -1014,14 +1014,14 @@ assert.deepEqual(
 	pipelineCalls.map(({ options }) => options),
 	[
 		{ model: READING_STORY_PLOT_MODEL, reasoningEffort: "low" },
-		{ model: READING_STORY_PLOT_MODEL, reasoningEffort: "low" },
+		{ model: READING_STORY_PLOT_MODEL, reasoningEffort: "medium" },
 		{ reasoningEffort: "medium" },
 		{ model: READING_STORY_LOGIC_MODEL, reasoningEffort: "medium" },
 		{ model: READING_STORY_PROOFREAD_MODEL, reasoningEffort: "medium" },
 		{ model: DEFAULT_TEXT_MODEL },
-		{ model: READING_STORY_VISUAL_MODEL, reasoningEffort: "none" },
-		{ model: READING_STORY_VISUAL_MODEL, reasoningEffort: "none" },
-		{ model: READING_STORY_VISUAL_MODEL, reasoningEffort: "none" },
+		{ model: READING_STORY_VISUAL_MODEL, reasoningEffort: "low" },
+		{ model: READING_STORY_VISUAL_MODEL, reasoningEffort: "low" },
+		{ model: READING_STORY_VISUAL_MODEL, reasoningEffort: "low" },
 	],
 );
 assert.equal(

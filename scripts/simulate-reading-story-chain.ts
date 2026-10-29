@@ -42,7 +42,11 @@ import {
 	type NextStoryEvidence,
 	recoverNextStoryBrief,
 } from "../src/server/nextStoryBriefService.ts";
-import { generateReadingStory, type ReadingStory } from "../src/story.ts";
+import {
+	generateReadingStory,
+	type ReadingStory,
+	type ReadingStoryGenerationLog,
+} from "../src/story.ts";
 import {
 	STORY_DIFFICULTIES,
 	type StoryDifficulty,
@@ -87,6 +91,8 @@ export interface StoryChainStep {
 	themeSource: "explicit" | "handoff" | "open-choice";
 	preferences: Pick<LearnerPreferences, "prefer" | "avoid">;
 	story: ReadingStory;
+	/** What the plot review, logic check, and proofread changed on the way. */
+	generation?: ReadingStoryGenerationLog;
 	feedback: ChainFeedback;
 	nextStoryBrief: NextStoryBrief;
 	recentStory: RecentStoryMemory | null;
@@ -570,6 +576,7 @@ async function simulateChain(
 		process.stderr.write(
 			`Generating story ${index + 1}/${length}${scenarioStep?.label ? ` (${scenarioStep.label})` : ""}...\n`,
 		);
+		let generation: ReadingStoryGenerationLog | undefined;
 		const story = await generateStoryWithRetries(
 			() =>
 				withAiTraceMetadata(
@@ -579,6 +586,9 @@ async function simulateChain(
 							reasoningEffort: options.reasoningEffort,
 							nextStoryBrief: inputBrief,
 							recentStories: storyMemory.recentStories,
+							onGenerationLog: (log) => {
+								generation = log;
+							},
 						}),
 				),
 			options.retries,
@@ -632,6 +642,7 @@ async function simulateChain(
 			themeSource,
 			preferences: structuredClone(preferences),
 			story,
+			generation,
 			feedback,
 			nextStoryBrief,
 			recentStory,
@@ -652,10 +663,15 @@ function classifyChainStage(systemPrompt: string): string {
 		return "plot-review";
 	if (systemPrompt.startsWith("Author the finished manuscript"))
 		return "manuscript";
+	if (systemPrompt.startsWith("You are a careful story editor"))
+		return "logic-check";
+	if (systemPrompt.startsWith("You are a meticulous native-level"))
+		return "proofread";
 	if (systemPrompt.startsWith("Divide an already finished")) return "split";
-	if (systemPrompt.startsWith("Design a coherent visual plan"))
-		return "visual-plan";
-	if (systemPrompt.startsWith("Repair the supplied output")) return "repair";
+	if (systemPrompt.startsWith("Design the shared visual look"))
+		return "visual-look";
+	if (systemPrompt.startsWith("Plan one illustration")) return "image-scene";
+	if (systemPrompt.startsWith("Repair the supplied")) return "repair";
 	return "other";
 }
 
@@ -708,6 +724,29 @@ function attributedParts(story: ReadingStory, genre: Language): string {
 		.join("\n\n");
 }
 
+/** The intermediate results that show which pass introduced or missed a flaw. */
+function generationReport(generation?: ReadingStoryGenerationLog): string[] {
+	if (!generation) return [];
+	const reviews = (["logicCheck", "proofread"] as const).map((pass) => {
+		const review = generation[pass];
+		const applied = new Set(review.applied.map((edit) => edit.original));
+		const edits = review.proposed.map(
+			(edit) =>
+				`- ${applied.has(edit.original.trim()) ? "applied" : "DROPPED"}: ${edit.original}\n  -> ${edit.corrected}${edit.reason ? ` (${edit.reason})` : ""}`,
+		);
+		return [
+			`${pass}: ${review.proposed.length} proposed, ${review.applied.length} applied${review.error ? `, failed: ${review.error}` : ""}`,
+			...edits,
+		].join("\n");
+	});
+	return [
+		generation.plotRevised
+			? `Plot draft (before review):\n${generation.plotDraft}`
+			: "Plot review: kept the draft",
+		...reviews,
+	];
+}
+
 function formatReadable(steps: StoryChainStep[], genre: Language): string {
 	return `${steps
 		.map((step) => {
@@ -722,10 +761,12 @@ function formatReadable(steps: StoryChainStep[], genre: Language): string {
 				`Effective preferences before generation:\n${JSON.stringify(step.preferences, null, 2)}`,
 				`Input brief:\n${JSON.stringify(step.inputBrief, null, 2)}`,
 				`Story subject (${step.themeSource}):\n${step.storySubject ?? "(model chooses freely)"}`,
+				...generationReport(step.generation),
 				`Plot summary:\n${step.story.storySummary}`,
 				`Language focus:\n${step.story.languageFocus}`,
 				`Speaking characters: ${characters}`,
 				parts,
+				`Image scenes:\n${step.story.imageScenes.map((scene) => `- [${scene.visible.join(", ")}] ${scene.prompt}`).join("\n")}`,
 				`Simulated learner feedback:\n${JSON.stringify(step.feedback, null, 2)}`,
 				`Completed-story memory added to FIFO:\n${JSON.stringify(step.recentStory, null, 2)}`,
 				`Handoff recovery used: ${step.handoffRecovered ? "yes" : "no"}`,

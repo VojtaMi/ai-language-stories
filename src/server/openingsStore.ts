@@ -24,6 +24,7 @@ import {
 	generateReadingStory,
 	isSupportedReadingStory,
 	type ReadingStory,
+	type ReadingStoryGenerationLog,
 	readingImagePrompt,
 	readingStoryMessages,
 	readingVisualContext,
@@ -259,6 +260,7 @@ async function createPreparedReadingOpening(
 		? ((await readFinishEvidence(basedOnStoryId)).nextStoryBrief ??
 			starterBriefForLanguage(genre))
 		: starterBriefForLanguage(genre);
+	let generationLog: ReadingStoryGenerationLog | undefined;
 	const readingStory = await generateReadingStory(
 		(messages, maxTokens, options) =>
 			completeStructuredAi(
@@ -278,11 +280,15 @@ async function createPreparedReadingOpening(
 			recentStories: storyMemory.recentStories.filter(
 				(story) => story.genreId === genre.id,
 			),
+			onGenerationLog: (log) => {
+				generationLog = log;
+			},
 		},
 	);
 	const text = readingStory.parts[0].text;
 	const title = readingStory.title;
 	const id = createBundleId(genre.id, title, randomUUID());
+	if (generationLog) await writeGenerationLog(id, generationLog, readingStory);
 	const narrationVoice = pickRandomNarrationVoice();
 	// Starts alongside the first section's media but is not awaited: the story
 	// is ready to read without it, and its batches are paced in the background.
@@ -326,6 +332,29 @@ async function createPreparedReadingOpening(
 		createdAt: new Date().toISOString(),
 		basedOnStoryId,
 	};
+}
+
+/**
+ * Keeps the intermediate generation results beside the story's media, so a
+ * flaw in the finished story can be traced to the pass that introduced or
+ * missed it. Diagnostic only; nothing reads it back.
+ */
+async function writeGenerationLog(
+	storyId: string,
+	log: ReadingStoryGenerationLog,
+	story: ReadingStory,
+) {
+	try {
+		const path = join(storyBundlePath(storyId), "generation.json");
+		await mkdir(dirname(path), { recursive: true });
+		await writeFile(
+			path,
+			`${JSON.stringify({ ...log, story }, null, 2)}\n`,
+			"utf8",
+		);
+	} catch (err) {
+		console.warn("Could not write the story generation log.", err);
+	}
 }
 
 /** Each story word under the section where it first appears. */

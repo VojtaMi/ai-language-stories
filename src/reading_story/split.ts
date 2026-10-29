@@ -8,6 +8,12 @@ import type { ReadingStoryManuscript } from "./manuscript";
 
 const SPLIT_MAX_TOKENS = 600;
 export const READING_STORY_MAX_PARTS = 8;
+/**
+ * A part below this carries no event of its own, such as a lone pair of
+ * introductions or a one-sentence ending, and its image would have nothing to
+ * show. The split model is told not to isolate one, but does anyway.
+ */
+const MIN_PART_WORDS = 10;
 
 function splitPrompt(genre: Language) {
 	return `Divide an already finished ${genre.label} reading story into presentation parts.
@@ -139,7 +145,34 @@ export async function splitReadingManuscript(
 		);
 		breaks = parseBreaks(retry, sentences.length, range);
 	}
-	return assembleParts(sentences, breaks, manuscript.text);
+	return assembleParts(
+		sentences,
+		withoutShortParts(sentences, breaks),
+		manuscript.text,
+	);
+}
+
+/** Merges each too-short part into its shorter neighbour, keeping at least two parts. */
+export function withoutShortParts(
+	sentences: string[],
+	breaks: number[],
+): number[] {
+	const result = [...breaks];
+	while (result.length > 1) {
+		const bounds = [0, ...result, sentences.length];
+		const sizes = result
+			.concat(sentences.length)
+			.map((end, index) =>
+				countWords(sentences.slice(bounds[index], end).join("")),
+			);
+		const short = sizes.findIndex((size) => size < MIN_PART_WORDS);
+		if (short === -1) break;
+		const mergeWithNext =
+			short === 0 ||
+			(short < sizes.length - 1 && sizes[short + 1] < sizes[short - 1]);
+		result.splice(mergeWithNext ? short : short - 1, 1);
+	}
+	return result;
 }
 
 function parseBreaks(

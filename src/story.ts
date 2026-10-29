@@ -9,7 +9,10 @@ import type { NextStoryBrief } from "./nextStoryBrief";
 import type { DialogueLine, StoryCharacter } from "./reading_story/dialogue";
 import { checkReadingManuscriptLogic } from "./reading_story/logicCheck";
 import { generateReadingManuscript } from "./reading_story/manuscript";
-import { proofreadReadingManuscript } from "./reading_story/proofread";
+import {
+	type ManuscriptReview,
+	proofreadReadingManuscript,
+} from "./reading_story/proofread";
 import {
 	READING_STORY_MAX_PARTS,
 	splitReadingManuscript,
@@ -60,6 +63,19 @@ export interface ReadingStory {
 	 */
 	characters?: StoryCharacter[];
 	dialogue?: DialogueLine[];
+}
+
+/**
+ * The intermediate results that shaped a story, kept beside it for diagnosis:
+ * a finished story alone does not show which pass introduced or missed a flaw.
+ */
+export interface ReadingStoryGenerationLog {
+	plotDraft: string;
+	plotRevised: boolean;
+	plot: string;
+	draftText: string;
+	logicCheck: ManuscriptReview;
+	proofread: ManuscriptReview;
 }
 
 /**
@@ -143,13 +159,14 @@ export async function generateReadingStory(
 		reasoningEffort?: TextReasoningEffort;
 		nextStoryBrief?: NextStoryBrief;
 		recentStories?: RecentStoryMemory[];
+		onGenerationLog?: (log: ReadingStoryGenerationLog) => void;
 	} = {},
 ): Promise<ReadingStory> {
 	const nextStoryBrief =
 		options.nextStoryBrief ?? starterBriefForLanguage(genre);
 	const explicitTheme = nextTheme?.trim().slice(0, NEXT_THEME_MAX_CHARS) ?? "";
 	const storySubject = explicitTheme || nextStoryBrief.themeSuggestion;
-	const storyPlot = await prepareReadingStoryPlot(
+	const plotResult = await prepareReadingStoryPlot(
 		complete,
 		storySubject || undefined,
 		preferences,
@@ -158,6 +175,7 @@ export async function generateReadingStory(
 		genre,
 		nextStoryBrief.language.focus,
 	);
+	const storyPlot = plotResult.plot;
 	const draftManuscript = await generateReadingManuscript(
 		complete,
 		genre,
@@ -166,16 +184,25 @@ export async function generateReadingStory(
 		preferences,
 		options.reasoningEffort ?? "low",
 	);
-	const checkedManuscript = await checkReadingManuscriptLogic(
+	const logicCheck = await checkReadingManuscriptLogic(
 		complete,
 		draftManuscript,
 		genre,
 	);
-	const manuscript = await proofreadReadingManuscript(
+	const proofread = await proofreadReadingManuscript(
 		complete,
-		checkedManuscript,
+		logicCheck.manuscript,
 		genre,
 	);
+	const manuscript = proofread.manuscript;
+	options.onGenerationLog?.({
+		plotDraft: plotResult.draft,
+		plotRevised: plotResult.revised,
+		plot: storyPlot,
+		draftText: draftManuscript.text,
+		logicCheck: logicCheck.review,
+		proofread: proofread.review,
+	});
 	const parts = await splitReadingManuscript(complete, manuscript, genre);
 	const visualPlan = await generateReadingVisualPlan(
 		complete,

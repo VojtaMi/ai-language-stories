@@ -34,6 +34,8 @@ type AiTraceRecord = {
 	input?: AiTracePayloadSummary;
 	output?: AiTracePayloadSummary;
 	metadata?: Record<string, unknown>;
+	/** The provider's token accounting, as reported, for cost estimates. */
+	usage?: unknown;
 	error?: {
 		name: string;
 		message: string;
@@ -98,10 +100,12 @@ export async function traceAiCall<T>(
 	const start = performance.now();
 	try {
 		const value = await work();
+		const usage = usageOf(value);
 		queueTraceRecord({
 			...baseRecord(call, start),
 			ok: true,
 			output: summarizePayload(output ? output(value) : call.output),
+			...(usage ? { usage } : {}),
 		});
 		return value;
 	} catch (err) {
@@ -112,6 +116,13 @@ export async function traceAiCall<T>(
 		});
 		throw err;
 	}
+}
+
+/** OpenAI and Anthropic report `usage`; Gemini reports `usageMetadata`. */
+function usageOf(value: unknown): unknown {
+	if (!value || typeof value !== "object") return undefined;
+	const record = value as { usage?: unknown; usageMetadata?: unknown };
+	return record.usage ?? record.usageMetadata;
 }
 
 function baseRecord(

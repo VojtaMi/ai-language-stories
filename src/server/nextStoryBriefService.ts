@@ -49,8 +49,8 @@ Rules:
 - Recap exercises test story comprehension and vocabulary, not grammar production or mastery of the completed story's language focus. Interpret attempts as evidence of reading comprehension; a first-try answer alone does not prove grammar mastery.
 - Use reinforce when the learner still needs the chosen focus. Use advance only when the evidence supports moving to a genuinely new next step.
 - complexityFromFeedback is already derived from the learner's difficulty rating. Use it as language.complexity, or one step simpler only when recap results, lookups, or questions show strong struggle. Never choose a harder complexity.
-- Provide one or two short ${genre.label} examples that best calibrate the completed story's difficulty. They may quote or lightly paraphrase storyParts, but must stay representative of the language the learner just read. Snippets demonstrate complexity only; the next author is forbidden to copy their content or vocabulary.
-- recentStory compactly describes only the completed story for a bounded anti-repetition queue. Use concise English phrases. protagonist describes the character type, not merely their proper name. Include at most six genuinely distinctive elements.
+- Provide one or two short ${genre.label} examples that best calibrate the completed story's difficulty: typical sentences of the story, not its longest or most complex ones. They may quote or lightly paraphrase storyParts, but must stay representative of the language the learner just read. Snippets demonstrate complexity only; the next author is forbidden to copy their content or vocabulary.
+- recentStory compactly describes only the completed story for a bounded anti-repetition queue. Use concise English phrases. protagonist gives the character type followed by their name, such as "a hungry shopper named Frieda", so later stories can avoid both. Include at most six genuinely distinctive elements.
 - Never include learner history, vocabulary lists, explanations, or authoring instructions in any output field.`;
 }
 
@@ -66,10 +66,7 @@ export async function generateNextStoryBrief(
 		recoveryBrief ?? starterBriefForLanguage(genre),
 	);
 	const baselineComplexity = complexityFromDifficulty(evidence.difficulty);
-	const narrativeScale = nextNarrativeScale(
-		evidence.difficulty,
-		recoveryBrief?.narrativeScale,
-	);
+	const narrativeScale = nextNarrativeScale(evidence.difficulty, recoveryBrief);
 	const response = await completeStructuredAi(
 		openai,
 		[
@@ -174,17 +171,25 @@ function boundedComplexity(
 
 /**
  * Narrative scale follows the rating from the finished story's actual scale:
- * kept when it felt right or was not rated, reduced when it felt hard, and
- * grown when it felt easy. Advancement is never expressed through more
- * characters, denser events, or specialized roles.
+ * kept when it felt right or was not rated, and reduced when it felt hard.
+ * An easy story first gets richer language at the same length; the story
+ * grows only once a story already written harder still felt easy, so one
+ * rating never doubles the length and raises the language at once.
+ * Advancement is never expressed through more characters, denser events, or
+ * specialized roles.
  */
 export function nextNarrativeScale(
 	difficulty: StoryDifficulty | undefined,
-	previous: NarrativeScale | undefined,
+	previous: NextStoryBrief | undefined,
 ): NarrativeScale {
 	if (difficulty === "tooHard" || difficulty === "bitHard") return "minimal";
-	if (difficulty === "tooEasy" || difficulty === "bitEasy") return "simple";
-	return previous ?? "minimal";
+	if (
+		(difficulty === "tooEasy" || difficulty === "bitEasy") &&
+		previous?.language.complexity === "harder"
+	) {
+		return "simple";
+	}
+	return previous?.narrativeScale ?? "minimal";
 }
 
 /**
@@ -200,10 +205,7 @@ export function recoverNextStoryBrief(
 	const base = recoveryBrief ?? STARTER_NEXT_STORY_BRIEF;
 	return {
 		themeSuggestion: "",
-		narrativeScale: nextNarrativeScale(
-			evidence.difficulty,
-			base.narrativeScale,
-		),
+		narrativeScale: nextNarrativeScale(evidence.difficulty, base),
 		language: {
 			focus: evidence.languageFocus.trim() || base.language.focus,
 			progression: "reinforce",

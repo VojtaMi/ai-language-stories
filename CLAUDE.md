@@ -49,8 +49,9 @@ npm run story:chain -- \
 A scenario defines a timeline. `beforeStory` changes preferences or an explicit
 theme before generation; `afterStory` supplies simulated learner feedback for
 the next-story handoff. Omitted preferences carry forward. The report exposes
-the effective preferences, story subject, incoming brief, plot, manuscript,
-and outgoing handoff. The full scenario shape is documented in
+the effective preferences, story subject, incoming brief, the plot before and
+after review, every logic-check and proofreading edit, the manuscript, the
+planned image scenes, and the outgoing handoff. The full scenario shape is documented in
 [`docs/ai-workflows.md`](./docs/ai-workflows.md).
 
 This exercises the real text-story and handoff pipeline, but does not simulate

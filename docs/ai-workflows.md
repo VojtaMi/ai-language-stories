@@ -25,9 +25,41 @@ never generates prose. On finish, one idempotent record at
 reopening an old story cannot revise that handoff.
 
 Translation/audio files and in-flight media work are cached. Cache hits do not
-call a provider. Enable `AI_CALL_LOG=1` to trace real provider calls to
-`logs/ai-calls.ndjson`; `AI_CALL_LOG_PAYLOAD=full` includes full prompts and
-learner content and should be handled as private data.
+call a provider. Enable `AI_CALL_LOG=1` to trace real provider calls, with the
+provider's token usage, to `logs/ai-calls.ndjson` (or `AI_CALL_LOG_PATH`);
+`AI_CALL_LOG_PAYLOAD=full` includes full prompts and learner content and should
+be handled as private data. The log is emptied when the server starts, which
+under `tsx watch` means on every source edit; set `AI_CALL_LOG_APPEND=1` to keep
+it across restarts.
+
+Every generated reading story also keeps `generation.json` beside its media:
+the plot draft and reviewed plot, the draft manuscript, and each logic-check
+and proofreading edit, proposed and applied. `npm run story:show -- <story-id>`
+prints it, so a flaw in a finished story can be traced to the pass that
+introduced or missed it.
+
+## Reading a chain of stories in the real app
+
+Try prompt and model changes with `npm run story:chain` first: it runs the
+same text pipeline, including the image-scene plans, for a few cents a story
+and spends no image or TTS quota. Use the real app once the text is right, to
+judge the images and the finished experience.
+
+`npm run story:drive` reads a chain of stories end to end in a real browser as
+one simulated learner, including narration, images, the recap, and the
+difficulty rating that steers the next story:
+
+```bash
+npm run story:drive -- --base http://localhost:5174 --language german \
+  --feedback tooEasy,tooEasy,tooHard,right --out .artifacts/chain-a
+```
+
+The browser profile under `--out` is the learner, so a rerun with the same
+`--out` continues the chain. Run it against a separate dev instance started
+with `AI_RATE_LIMIT_ENABLED=false`: the per-minute provider limit otherwise
+stalls the chain. Each story spends real image and TTS quota; Gemini TTS on
+Tier 1 allows 100 requests a day, and word-audio prewarming spends most of
+them.
 
 ## Comparing manuscript models
 

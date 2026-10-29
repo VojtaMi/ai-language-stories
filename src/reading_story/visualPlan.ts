@@ -127,12 +127,14 @@ function imageScenePrompt(genre: Language) {
 section is the one story part this image shows. Do not illustrate anything outside it. storyParts is the whole story, in order; use it only to know what is true at this moment, such as the weather, the light, or where everyone and everything is. Never show what happens in other parts. cast says who each character is. visualElements are the story's recurring elements, already designed.
 
 visible:
-- List the names of the visualElements at the scene's place at this moment, according to the whole story.
+- List the names of the visualElements at the scene's place at this moment, according to the whole story, including every one the prompt mentions.
 - A character who is still with the others is visible even when the section does not mention them.
 - An object that is lost, not yet introduced, or elsewhere is not visible.
 
 prompt:
 - Select one visually clear action that actually occurs in the section, in one location at one time.
+- Set it where the characters actually are at this moment according to the whole story. When the section only introduces characters, show them in the story's first setting. Never use an empty, neutral, or studio background.
+- When the text has several characters do one physical action together, such as carrying or unlocking something, show one of them doing it and the others beside them.
 - Refer to visual elements by their exact names. Briefly describe any visible person or creature who is not a visual element.
 - Give every visible person or creature's position individually; never use a collective such as "her family," "a group," or "a crowd" in place of naming them. End the cast with "No other people or creatures are visible."
 - State where each visible object is, the action, time of day, and lighting. Never combine sequential events or show one character or object more than once.
@@ -165,7 +167,9 @@ async function completeVisualStep<T>(
 			{ role: "user", content: untrustedData(data) },
 		],
 		maxTokens,
-		{ model: READING_STORY_VISUAL_MODEL, reasoningEffort: "none" },
+		// Without reasoning, scenes left people out of `visible` that the prompt
+		// mentioned, and put characters on empty backgrounds.
+		{ model: READING_STORY_VISUAL_MODEL, reasoningEffort: "low" },
 	);
 	try {
 		return parse(raw);

@@ -37,6 +37,8 @@
 		"story-recap:test": "tsx tests/story-recap.test.ts",
 		"story:generate": "tsx --env-file-if-exists=.env.local scripts/generate-reading-story.ts",
 		"story:chain": "tsx --env-file-if-exists=.env.local scripts/simulate-reading-story-chain.ts",
+		"story:drive": "node scripts/drive-reading-chain.mjs",
+		"story:show": "node scripts/show-story-generation.mjs",
 		"verify:page": "node scripts/verify-page.mjs"
 	},
 	"dependencies": {

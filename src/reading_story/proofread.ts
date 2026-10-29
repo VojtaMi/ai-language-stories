@@ -21,6 +21,15 @@ export const READING_STORY_PROOFREAD_MODEL: TextModelId = "gpt-6-sol";
 export interface ManuscriptCorrection {
 	original: string;
 	corrected: string;
+	reason?: string;
+}
+
+/** What a review pass proposed and which edits survived the substitution guard. */
+export interface ManuscriptReview {
+	proposed: ManuscriptCorrection[];
+	applied: ManuscriptCorrection[];
+	/** Set when the call failed and the manuscript was kept as written. */
+	error?: string;
 }
 
 function proofreadPrompt(genre: Language) {
@@ -56,7 +65,13 @@ export function parseManuscriptCorrections(
 		isObject(item) &&
 		typeof item.original === "string" &&
 		typeof item.corrected === "string"
-			? [{ original: item.original, corrected: item.corrected }]
+			? [
+					{
+						original: item.original,
+						corrected: item.corrected,
+						...(typeof item.reason === "string" ? { reason: item.reason } : {}),
+					},
+				]
 			: [],
 	);
 }
@@ -79,7 +94,8 @@ export function applyManuscriptCorrections(
 			.length;
 	let next = text;
 	const applied: ManuscriptCorrection[] = [];
-	for (const { original, corrected } of corrections) {
+	for (const correction of corrections) {
+		const { original, corrected } = correction;
 		const from = original.trim();
 		const to = corrected.trim();
 		if (!from || !to || from === to) continue;
@@ -90,7 +106,7 @@ export function applyManuscriptCorrections(
 		const first = next.indexOf(from);
 		if (first === -1 || next.indexOf(from, first + 1) !== -1) continue;
 		next = next.slice(0, first) + to + next.slice(first + from.length);
-		applied.push({ original: from, corrected: to });
+		applied.push({ ...correction, original: from, corrected: to });
 	}
 	return { text: next, applied };
 }
@@ -104,7 +120,7 @@ export async function proofreadReadingManuscript(
 	complete: Complete,
 	manuscript: ReadingStoryManuscript,
 	genre: Language,
-): Promise<ReadingStoryManuscript> {
+): Promise<{ manuscript: ReadingStoryManuscript; review: ManuscriptReview }> {
 	let corrections: ManuscriptCorrection[];
 	try {
 		corrections = parseManuscriptCorrections(
@@ -116,12 +132,23 @@ export async function proofreadReadingManuscript(
 		);
 	} catch (error) {
 		console.warn("Could not proofread the reading story manuscript.", error);
-		return manuscript;
+		return { manuscript, review: failedReview(error) };
 	}
-	const { text } = applyManuscriptCorrections(
+	const { text, applied } = applyManuscriptCorrections(
 		manuscript.text,
 		corrections,
 		genre.dialogueQuotes,
 	);
-	return { ...manuscript, text };
+	return {
+		manuscript: { ...manuscript, text },
+		review: { proposed: corrections, applied },
+	};
+}
+
+export function failedReview(error: unknown): ManuscriptReview {
+	return {
+		proposed: [],
+		applied: [],
+		error: error instanceof Error ? error.message : String(error),
+	};
 }

@@ -83,7 +83,7 @@ const LANGUAGE_GUIDANCE: Record<
 	similar:
 		"Match the calibration snippets' sentence length, clause density, and grammatical range while preserving every plot event. Prefer the clearest natural formulation when several expressions are possible.",
 	harder:
-		"Make the target language modestly richer than the calibration snippets through natural sentence variety and the stated language focus. Do not increase plot density, introduce unrelated grammar targets, or make individual sentences difficult merely to signal progression.",
+		"Make the target language modestly richer than the calibration snippets: keep most sentences at the snippets' level, and add at most one kind of construction beyond them, preferably the stated language focus, used a few times where it fits. Do not combine several new constructions, increase plot density, introduce unrelated grammar targets, or make individual sentences difficult merely to signal progression.",
 };
 
 function manuscriptPrompt(genre: Language) {
